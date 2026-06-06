@@ -63,3 +63,10 @@
   * { @apply border-border; }
   body { @apply bg-background text-foreground; }
 }
+
+@media print {
+  /* Hide dashboard chrome when printing */
+  [data-sidebar], nav, header, .print-hidden { display: none !important; }
+  body { background: white !important; }
+  @page { size: A4; margin: 1cm; }
+}

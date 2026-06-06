@@ -54,8 +54,10 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
           <Link href="/dashboard/invoices"><ArrowRight className="h-4 w-4" /> الفواتير</Link>
         </Button>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Printer className="h-4 w-4" /> طباعة
+          <Button variant="outline" size="sm" asChild>
+            <a href={`/print/invoices/${params.id}`} target="_blank" rel="noopener noreferrer">
+              <Printer className="h-4 w-4" /> طباعة / PDF
+            </a>
           </Button>
           {invoice.status === "DRAFT" && (
             <Button size="sm">
