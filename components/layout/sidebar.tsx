@@ -6,7 +6,7 @@ import {
   LayoutDashboard, BookOpen, FileText, ShoppingCart, Package,
   CreditCard, Building2, BarChart3, Users, Settings, Bot,
   TrendingUp, Wallet, FileStack, Calculator, Briefcase,
-  ChevronDown, ChevronRight, DollarSign
+  ChevronDown, ChevronRight, DollarSign, MessageCircle
 } from "lucide-react"
 import { useState } from "react"
 
@@ -81,6 +81,11 @@ const navItems = [
       { label: "دفتر اليومية", href: "/dashboard/reports/day-book", icon: BookOpen },
       { label: "تقرير ضريبة القيمة المضافة", href: "/dashboard/reports/vat", icon: DollarSign },
     ],
+  },
+  {
+    label: "واتساب",
+    href: "/dashboard/whatsapp",
+    icon: MessageCircle,
   },
   {
     label: "المساعد الذكي",
