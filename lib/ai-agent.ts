@@ -201,10 +201,27 @@ ${recentTransactions.map((j) => `- [${j.date.toLocaleDateString("ar-SA")}] ${j.n
 `
 }
 
-export async function runAIAgent(message: string, organizationId: string, orgName: string, history: Array<{ role: "user" | "assistant", content: string }>) {
+export async function runAIAgent(
+  message: string,
+  organizationId: string,
+  orgName: string,
+  history: Array<{ role: "user" | "assistant", content: string }>,
+  countryCode = "SA",
+) {
+  const { getCountry } = await import("./countries")
+  const country = getCountry(countryCode)
   const context = await getFinancialContext(organizationId)
 
+  const vatNote = country.vatEnabled
+    ? `ضريبة القيمة المضافة المطبّقة: ${country.vatRate}% (${country.vatName})`
+    : `لا ضريبة قيمة مضافة في ${country.nameAr}`
+
   const systemPrompt = `أنت مساعد محاسبي ومالي ذكي لشركة "${orgName}". أنت خبير محاسب قانوني ومستشار مالي.
+
+معلومات الشركة:
+- الدولة: ${country.flag} ${country.nameAr}
+- العملة: ${country.currencyAr} (${country.currencySymbol})
+- ${vatNote}
 
 لديك البيانات المالية الحقيقية والمحدّثة للشركة:
 
@@ -220,6 +237,7 @@ ${context}
 
 قواعد الإجابة:
 - استخدم الأرقام الحقيقية دائماً من البيانات أعلاه
+- اعرض المبالغ دائماً بعملة الشركة (${country.currencySymbol})
 - قارن الفترات (أسبوع بأسبوع، شهر بشهر، سنة بسنة)
 - إذا انخفضت الأرباح، حدّد السبب: هل زادت المصروفات؟ أم انخفضت الإيرادات؟
 - نبّه للمخاطر بوضوح

@@ -2,6 +2,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { getCountry } from "@/lib/countries"
 import {
   LayoutDashboard, BookOpen, FileText, ShoppingCart, Package,
   CreditCard, Building2, BarChart3, Users, Settings, Bot,
@@ -102,6 +103,7 @@ const navItems = [
 export default function Sidebar({ org }: { org: any }) {
   const pathname = usePathname()
   const [openSections, setOpenSections] = useState<string[]>(["المحاسبة", "المبيعات"])
+  const country = getCountry(org.country || "SA")
 
   function toggleSection(label: string) {
     setOpenSections((prev) =>
@@ -119,6 +121,7 @@ export default function Sidebar({ org }: { org: any }) {
           <div>
             <p className="font-bold text-blue-600 text-sm">HesabPro</p>
             <p className="text-xs text-gray-500 truncate max-w-[140px]">{org.name}</p>
+            <p className="text-xs text-gray-400">{country.flag} {country.currencySymbol}</p>
           </div>
         </div>
       </div>

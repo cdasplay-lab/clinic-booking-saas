@@ -7,12 +7,27 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatCurrency(amount: number | string, currency = 'SAR', locale = 'ar-SA') {
   const num = typeof amount === 'string' ? parseFloat(amount) : amount
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(num)
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num)
+  } catch {
+    // Fallback for currencies not supported by Intl (e.g. IQD in some environments)
+    return new Intl.NumberFormat(locale, {
+      style: 'decimal',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num) + ' ' + currency
+  }
+}
+
+export function formatCurrencyByCountry(amount: number | string, countryCode: string) {
+  const { getCountry } = require('@/lib/countries')
+  const c = getCountry(countryCode)
+  return formatCurrency(amount, c.currency, c.locale)
 }
 
 export function formatDate(date: Date | string, locale = 'ar-SA') {

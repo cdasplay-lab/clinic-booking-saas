@@ -6,13 +6,28 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { BookOpen, Loader2 } from "lucide-react"
+import { BookOpen, Loader2, ChevronDown } from "lucide-react"
+import { COUNTRY_LIST, type CountryCode } from "@/lib/countries"
+
+const PRIORITY: CountryCode[] = ["IQ", "SA", "AE", "KW", "QA", "BH", "OM"]
+const orderedCountries = [
+  ...PRIORITY.map((c) => COUNTRY_LIST.find((x) => x.code === c)!),
+  ...COUNTRY_LIST.filter((c) => !PRIORITY.includes(c.code as CountryCode)),
+]
 
 export default function RegisterPage() {
   const router = useRouter()
-  const [form, setForm] = useState({ name: "", email: "", password: "", orgName: "" })
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    orgName: "",
+    country: "IQ" as CountryCode,
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+
+  const selected = orderedCountries.find((c) => c.code === form.country)!
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -36,14 +51,14 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100" dir="rtl">
       <div className="w-full max-w-md p-4">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             <BookOpen className="h-8 w-8 text-blue-600" />
             <h1 className="text-3xl font-bold text-blue-600">HesabPro</h1>
           </div>
-          <p className="text-gray-600">ابدأ مجاناً - لا حاجة لبطاقة ائتمانية</p>
+          <p className="text-gray-600">ابدأ مجاناً — لا حاجة لبطاقة ائتمانية</p>
         </div>
 
         <Card>
@@ -56,6 +71,50 @@ export default function RegisterPage() {
               {error && (
                 <div className="bg-red-50 text-red-700 px-4 py-3 rounded-md text-sm">{error}</div>
               )}
+
+              {/* Country selector */}
+              <div className="space-y-2">
+                <Label>الدولة</Label>
+                <div className="relative">
+                  <select
+                    value={form.country}
+                    onChange={(e) => setForm({ ...form, country: e.target.value as CountryCode })}
+                    className="w-full appearance-none rounded-md border border-input bg-background px-3 py-2 pr-10 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    {orderedCountries.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.flag} {c.nameAr} — {c.currencyAr} ({c.currencySymbol})
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
+                    العملة: {selected.currencySymbol}
+                  </span>
+                  {selected.vatEnabled ? (
+                    <span className="bg-orange-50 text-orange-700 px-2 py-1 rounded-full">
+                      {selected.vatName}
+                    </span>
+                  ) : (
+                    <span className="bg-green-50 text-green-700 px-2 py-1 rounded-full">
+                      لا ضريبة قيمة مضافة
+                    </span>
+                  )}
+                  {selected.zatcaRequired && (
+                    <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded-full">
+                      ZATCA متوافق
+                    </span>
+                  )}
+                  {selected.ftaRequired && (
+                    <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded-full">
+                      FTA متوافق
+                    </span>
+                  )}
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="orgName">اسم الشركة</Label>
                 <Input
@@ -102,7 +161,7 @@ export default function RegisterPage() {
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : null}
+                {loading && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
                 إنشاء الحساب مجاناً
               </Button>
               <p className="text-sm text-center text-gray-600">

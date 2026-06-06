@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   }))
 
   try {
-    const response = await runAIAgent(message, organizationId, userOrg.organization.name, historyFormatted)
+    const response = await runAIAgent(message, organizationId, userOrg.organization.name, historyFormatted, userOrg.organization.country)
 
     await prisma.aIMessage.create({ data: { conversationId: convId, role: "ASSISTANT", content: response } })
 

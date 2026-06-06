@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { formatCurrency } from "@/lib/utils"
+import { getCountry } from "@/lib/countries"
 import DashboardCharts from "@/components/dashboard/charts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -23,6 +24,8 @@ export default async function DashboardPage() {
   if (!userOrg) redirect("/onboarding")
 
   const orgId = userOrg.organizationId
+  const country = getCountry(userOrg.organization.country)
+  const fmt = (n: number) => formatCurrency(n, country.currency, country.locale)
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
@@ -129,7 +132,7 @@ export default async function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">الإيرادات هذا الشهر</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(revenue)}</p>
+                <p className="text-2xl font-bold text-gray-900">{fmt(revenue)}</p>
               </div>
               <div className="bg-green-100 p-3 rounded-full">
                 <TrendingUp className="h-5 w-5 text-green-600" />
@@ -143,7 +146,7 @@ export default async function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">المصروفات هذا الشهر</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(expenses)}</p>
+                <p className="text-2xl font-bold text-gray-900">{fmt(expenses)}</p>
               </div>
               <div className="bg-red-100 p-3 rounded-full">
                 <TrendingDown className="h-5 w-5 text-red-600" />
@@ -157,7 +160,7 @@ export default async function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">الرصيد النقدي</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(cash)}</p>
+                <p className="text-2xl font-bold text-gray-900">{fmt(cash)}</p>
               </div>
               <div className="bg-blue-100 p-3 rounded-full">
                 <DollarSign className="h-5 w-5 text-blue-600" />
@@ -172,7 +175,7 @@ export default async function DashboardPage() {
               <div>
                 <p className="text-sm text-gray-500">صافي الربح</p>
                 <p className={`text-2xl font-bold ${revenue - expenses >= 0 ? "text-green-600" : "text-red-600"}`}>
-                  {formatCurrency(revenue - expenses)}
+                  {fmt(revenue - expenses)}
                 </p>
               </div>
               <div className="bg-purple-100 p-3 rounded-full">
@@ -198,7 +201,7 @@ export default async function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-600 mb-3">{formatCurrency(receivablesTotal)}</p>
+            <p className="text-3xl font-bold text-green-600 mb-3">{fmt(receivablesTotal)}</p>
             <div className="space-y-2">
               {overdueInvoices.slice(0, 3).map((inv) => (
                 <div key={inv.id} className="flex items-center justify-between text-sm">
@@ -206,7 +209,7 @@ export default async function DashboardPage() {
                     <AlertCircle className="h-3.5 w-3.5 text-red-500" />
                     <span className="text-gray-700">{inv.contact.name}</span>
                   </div>
-                  <span className="font-medium">{formatCurrency(Number(inv.amountDue))}</span>
+                  <span className="font-medium">{fmt(Number(inv.amountDue))}</span>
                 </div>
               ))}
             </div>
@@ -226,7 +229,7 @@ export default async function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-red-600 mb-3">{formatCurrency(payablesTotal)}</p>
+            <p className="text-3xl font-bold text-red-600 mb-3">{fmt(payablesTotal)}</p>
             <div className="space-y-2">
               {overdueBills.slice(0, 3).map((bill) => (
                 <div key={bill.id} className="flex items-center justify-between text-sm">
@@ -234,7 +237,7 @@ export default async function DashboardPage() {
                     <AlertCircle className="h-3.5 w-3.5 text-red-500" />
                     <span className="text-gray-700">{bill.contact.name}</span>
                   </div>
-                  <span className="font-medium">{formatCurrency(Number(bill.amountDue))}</span>
+                  <span className="font-medium">{fmt(Number(bill.amountDue))}</span>
                 </div>
               ))}
             </div>
@@ -271,7 +274,7 @@ export default async function DashboardPage() {
                       </p>
                     </div>
                   </div>
-                  <span className="text-sm font-medium">{formatCurrency(Number(j.totalDebit))}</span>
+                  <span className="text-sm font-medium">{fmt(Number(j.totalDebit))}</span>
                 </div>
               ))
             )}
