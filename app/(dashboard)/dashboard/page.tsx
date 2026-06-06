@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import { formatCurrency } from "@/lib/utils"
 import { getCountry } from "@/lib/countries"
 import DashboardCharts from "@/components/dashboard/charts"
+import DemoBanner from "@/components/dashboard/demo-banner"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   TrendingUp, TrendingDown, DollarSign, AlertCircle,
@@ -118,12 +119,18 @@ export default async function DashboardPage() {
   const receivablesTotal = Number(receivables._sum.amountDue || 0)
   const payablesTotal = Number(payables._sum.amountDue || 0)
 
+  // Show demo banner when org has no real data yet
+  const hasData = await prisma.contact.count({ where: { organizationId: orgId } })
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">لوحة التحكم</h1>
-        <p className="text-gray-500 text-sm">مرحباً، {session.user.name} - هذا ملخص وضع شركتك المالي</p>
+        <p className="text-gray-500 text-sm">مرحباً، {session.user.name} — {country.flag} {userOrg.organization.name}</p>
       </div>
+
+      {/* Demo data banner — shown only when org is empty */}
+      {hasData === 0 && <DemoBanner />}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -4,9 +4,10 @@ import { redirect } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { CreditCard, Users, Shield, CheckCircle2 } from "lucide-react"
+import { CreditCard, Users, Shield, CheckCircle2, Sparkles } from "lucide-react"
 import { getCountry } from "@/lib/countries"
 import OrgSettingsForm from "@/components/settings/org-settings-form"
+import DemoSeedButton from "@/components/settings/demo-seed-button"
 import Link from "next/link"
 
 export default async function SettingsPage() {
@@ -158,6 +159,25 @@ export default async function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Demo Data */}
+      {isOwnerOrAdmin && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-yellow-500" />
+              <CardTitle>بيانات تجريبية</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-600 mb-3">
+              تحميل عملاء وفواتير ومصروفات وموظفين تجريبيين لرؤية النظام بشكل كامل.
+              <span className="text-red-500 font-medium"> تعمل فقط إذا الشركة فارغة.</span>
+            </p>
+            <DemoSeedButton />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Security */}
       <Card>
