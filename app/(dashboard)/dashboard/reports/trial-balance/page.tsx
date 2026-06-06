@@ -3,7 +3,9 @@ import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { getTrialBalance } from "@/lib/accounting"
 import { formatCurrency } from "@/lib/utils"
+import { getCountry } from "@/lib/countries"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import ExportButton from "@/components/reports/export-button"
 
 export default async function TrialBalancePage() {
   const session = await auth()
@@ -21,13 +23,19 @@ export default async function TrialBalancePage() {
   const totalDebit = accounts.reduce((s, a) => s + (a.nature === "DEBIT" && a.balance > 0 ? a.balance : 0), 0)
   const totalCredit = accounts.reduce((s, a) => s + (a.nature === "CREDIT" && a.balance > 0 ? a.balance : 0), 0)
 
+  const country = getCountry(userOrg.organization.country)
+  const fmt = (n: number) => formatCurrency(n, country.currency, country.locale)
+
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">ميزان المراجعة</h1>
-        <p className="text-sm text-gray-500">
-          {userOrg.organization.name} · حتى {asOfDate.toLocaleDateString("ar-SA")}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">ميزان المراجعة</h1>
+          <p className="text-sm text-gray-500">
+            {userOrg.organization.name} · حتى {asOfDate.toLocaleDateString("ar-SA")}
+          </p>
+        </div>
+        <ExportButton type="trial-balance" />
       </div>
 
       <div className="bg-white rounded-lg border overflow-hidden">
@@ -48,10 +56,10 @@ export default async function TrialBalancePage() {
                 <TableCell>{a.accountName}</TableCell>
                 <TableCell className="text-gray-500 text-sm">{a.groupName}</TableCell>
                 <TableCell className="text-left">
-                  {a.nature === "DEBIT" && a.balance > 0 ? formatCurrency(a.balance) : "-"}
+                  {a.nature === "DEBIT" && a.balance > 0 ? fmt(a.balance) : "-"}
                 </TableCell>
                 <TableCell className="text-left">
-                  {a.nature === "CREDIT" && a.balance > 0 ? formatCurrency(a.balance) : "-"}
+                  {a.nature === "CREDIT" && a.balance > 0 ? fmt(a.balance) : "-"}
                 </TableCell>
               </TableRow>
             ))}

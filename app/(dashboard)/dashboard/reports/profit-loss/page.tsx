@@ -3,7 +3,9 @@ import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { getProfitAndLoss } from "@/lib/accounting"
 import { formatCurrency } from "@/lib/utils"
+import { getCountry } from "@/lib/countries"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import ExportButton from "@/components/reports/export-button"
 
 export default async function ProfitLossPage() {
   const session = await auth()
@@ -19,13 +21,19 @@ export default async function ProfitLossPage() {
   const startOfYear = new Date(now.getFullYear(), 0, 1)
   const data = await getProfitAndLoss(userOrg.organizationId, startOfYear, now)
 
+  const country = getCountry(userOrg.organization.country)
+  const fmt = (n: number) => fmt(n, country.currency, country.locale)
+
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold">قائمة الأرباح والخسائر</h1>
-        <p className="text-sm text-gray-500">
-          {userOrg.organization.name} · من {startOfYear.toLocaleDateString("ar-SA")} إلى {now.toLocaleDateString("ar-SA")}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">قائمة الأرباح والخسائر</h1>
+          <p className="text-sm text-gray-500">
+            {userOrg.organization.name} · من {startOfYear.toLocaleDateString("ar-SA")} إلى {now.toLocaleDateString("ar-SA")}
+          </p>
+        </div>
+        <ExportButton type="profit-loss" />
       </div>
 
       <Card>
@@ -37,12 +45,12 @@ export default async function ProfitLossPage() {
             {data.revenues.map((a: any) => (
               <div key={a.id} className="flex justify-between px-4 py-2.5">
                 <span className="text-sm text-gray-700">{a.name}</span>
-                <span className="text-sm font-medium text-green-700">{formatCurrency(a.amount)}</span>
+                <span className="text-sm font-medium text-green-700">{fmt(a.amount)}</span>
               </div>
             ))}
             <div className="flex justify-between px-4 py-3 bg-green-50 font-bold text-green-800">
               <span>إجمالي الإيرادات</span>
-              <span>{formatCurrency(data.totalRevenue)}</span>
+              <span>{fmt(data.totalRevenue)}</span>
             </div>
           </div>
         </CardContent>
@@ -57,12 +65,12 @@ export default async function ProfitLossPage() {
             {data.expenses.map((a: any) => (
               <div key={a.id} className="flex justify-between px-4 py-2.5">
                 <span className="text-sm text-gray-700">{a.name}</span>
-                <span className="text-sm font-medium text-red-700">{formatCurrency(a.amount)}</span>
+                <span className="text-sm font-medium text-red-700">{fmt(a.amount)}</span>
               </div>
             ))}
             <div className="flex justify-between px-4 py-3 bg-red-50 font-bold text-red-800">
               <span>إجمالي المصروفات</span>
-              <span>{formatCurrency(data.totalExpenses)}</span>
+              <span>{fmt(data.totalExpenses)}</span>
             </div>
           </div>
         </CardContent>
@@ -71,7 +79,7 @@ export default async function ProfitLossPage() {
       <div className={`p-6 rounded-lg text-center ${data.netProfit >= 0 ? "bg-green-100" : "bg-red-100"}`}>
         <p className="text-sm text-gray-600 mb-1">صافي {data.netProfit >= 0 ? "الربح" : "الخسارة"}</p>
         <p className={`text-4xl font-bold ${data.netProfit >= 0 ? "text-green-700" : "text-red-700"}`}>
-          {formatCurrency(Math.abs(data.netProfit))}
+          {fmt(Math.abs(data.netProfit))}
         </p>
         <p className="text-sm mt-2 text-gray-500">
           هامش الربح: {data.totalRevenue > 0 ? ((data.netProfit / data.totalRevenue) * 100).toFixed(1) : 0}%

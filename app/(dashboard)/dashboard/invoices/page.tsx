@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, FileText } from "lucide-react"
 import { formatCurrency, formatDateShort } from "@/lib/utils"
+import ExportButton from "@/components/reports/export-button"
 
 const statusLabels: Record<string, { label: string; variant: any }> = {
   DRAFT: { label: "مسودة", variant: "secondary" },
@@ -45,12 +46,15 @@ export default async function InvoicesPage() {
           <h1 className="text-2xl font-bold">الفواتير</h1>
           <p className="text-sm text-gray-500">{invoices.length} فاتورة</p>
         </div>
-        <Button asChild>
-          <Link href="/dashboard/invoices/new">
-            <Plus className="h-4 w-4" />
-            فاتورة جديدة
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <ExportButton type="invoices" label="Excel" />
+          <Button asChild>
+            <Link href="/dashboard/invoices/new">
+              <Plus className="h-4 w-4" />
+              فاتورة جديدة
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
