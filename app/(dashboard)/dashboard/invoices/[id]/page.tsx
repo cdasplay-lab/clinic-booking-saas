@@ -7,8 +7,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import AttachmentPanel from "@/components/attachments/attachment-panel"
+import SendInvoiceButton from "@/components/invoice/send-invoice-button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table"
-import { ArrowRight, Printer, Send } from "lucide-react"
+import { ArrowRight, Printer } from "lucide-react"
 import Link from "next/link"
 
 const statusConfig: Record<string, { label: string; color: string }> = {
@@ -60,11 +61,11 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
               <Printer className="h-4 w-4" /> طباعة / PDF
             </a>
           </Button>
-          {invoice.status === "DRAFT" && (
-            <Button size="sm">
-              <Send className="h-4 w-4" /> إرسال للعميل
-            </Button>
-          )}
+          <SendInvoiceButton
+            invoiceId={params.id}
+            contactEmail={invoice.contact.email}
+            status={invoice.status}
+          />
         </div>
       </div>
 
