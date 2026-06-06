@@ -2,7 +2,8 @@
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Bot, User, Send, Loader2, TrendingUp, FileText, Calculator, AlertTriangle } from "lucide-react"
+import { Card } from "@/components/ui/card"
+import { Bot, User, Send, Loader2, TrendingUp, FileText, Calculator, AlertTriangle, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface Message {

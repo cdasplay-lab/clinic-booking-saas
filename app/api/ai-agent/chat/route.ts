@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import Anthropic from "@anthropic-ai/sdk"
+import { getTrialBalance, getProfitAndLoss, getBalanceSheet } from "@/lib/accounting"
 import { formatCurrency } from "@/lib/utils"
 
 const anthropic = new Anthropic({
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest) {
     overdueInvoices,
     overdueBills,
     recentJournals,
+    accounts,
     monthlyRevenue,
     monthlyExpenses,
     cashBalance,
@@ -80,6 +82,14 @@ export async function POST(req: NextRequest) {
       where: { organizationId },
       orderBy: { date: "desc" },
       take: 10,
+    }),
+    prisma.account.findMany({
+      where: { organizationId, isActive: true },
+      include: {
+        journalLines: {
+          where: { journal: { status: "POSTED" } },
+        },
+      },
     }),
     prisma.journalLine.aggregate({
       where: {
@@ -132,13 +142,10 @@ export async function POST(req: NextRequest) {
   const totalReceivables = overdueInvoices.reduce((s, i) => s + Number(i.amountDue), 0)
   const totalPayables = overdueBills.reduce((s, i) => s + Number(i.amountDue), 0)
 
-  const expensesByAccount = topExpenses
-    .map((a) => ({
-      name: a.name,
-      amount: a.journalLines.reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0),
-    }))
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, 5)
+  const expensesByAccount = topExpenses.map((a) => ({
+    name: a.name,
+    amount: a.journalLines.reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0),
+  })).sort((a, b) => b.amount - a.amount).slice(0, 5)
 
   const financialContext = `
 # البيانات المالية لشركة: ${userOrg.organization.name}
@@ -198,16 +205,13 @@ ${financialContext}
   messages.push({ role: "user", content: message })
 
   const response = await anthropic.messages.create({
-    model: "claude-opus-4-5",
+    model: "claude-opus-4-8",
     max_tokens: 2048,
     system: systemPrompt,
     messages,
   })
 
-  const assistantResponse =
-    response.content[0].type === "text"
-      ? response.content[0].text
-      : "عذراً، لم أستطع معالجة طلبك."
+  const assistantResponse = response.content[0].type === "text" ? response.content[0].text : "عذراً، لم أستطع معالجة طلبك."
 
   // Save assistant message
   await prisma.aIMessage.create({
