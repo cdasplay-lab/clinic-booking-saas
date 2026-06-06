@@ -58,6 +58,7 @@ model Organization {
   sequences        DocumentSequence[]
   whatsappIntegration WhatsAppIntegration?
   pendingTransactions PendingTransaction[]
+  attachments      Attachment[]
 }
 
 enum Plan {
@@ -81,6 +82,7 @@ model User {
   accounts      Account[]  @relation("CreatedBy")
   sessions      Session[]
   aiConversations AIConversation[]
+  attachments   Attachment[]
 }
 
 model Session {
@@ -1020,4 +1022,24 @@ enum PendingTxStatus {
   REJECTED
   POSTED
   FAILED
+}
+
+// ============================================================
+// ATTACHMENTS
+// ============================================================
+
+model Attachment {
+  id             String       @id @default(cuid())
+  organizationId String
+  uploadedBy     String
+  name           String
+  mimeType       String
+  size           Int
+  data           Bytes
+  entityType     String       // INVOICE | BILL | JOURNAL | EXPENSE | OTHER
+  entityId       String
+  createdAt      DateTime     @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploader       User         @relation(fields: [uploadedBy], references: [id])
 }

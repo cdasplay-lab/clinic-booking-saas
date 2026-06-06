@@ -67,6 +67,7 @@ export default async function JournalsPage() {
               <TableHead className="text-left">المدين</TableHead>
               <TableHead className="text-left">الدائن</TableHead>
               <TableHead>الحالة</TableHead>
+              <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -84,6 +85,11 @@ export default async function JournalsPage() {
                   <Badge variant={j.status === "POSTED" ? "success" : j.status === "CANCELLED" ? "destructive" : "secondary"}>
                     {j.status === "POSTED" ? "مرحّل" : j.status === "CANCELLED" ? "ملغي" : "مسودة"}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href={`/dashboard/journals/${j.id}`}>عرض</Link>
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
