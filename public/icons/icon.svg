@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#2563eb"/>
+  <rect x="80" y="80" width="352" height="352" rx="48" fill="#1d4ed8"/>
+  <!-- Book/ledger icon -->
+  <rect x="140" y="130" width="180" height="220" rx="12" fill="white"/>
+  <rect x="140" y="130" width="24" height="220" rx="8" fill="#93c5fd"/>
+  <rect x="180" y="170" width="110" height="8" rx="4" fill="#bfdbfe"/>
+  <rect x="180" y="195" width="90" height="8" rx="4" fill="#bfdbfe"/>
+  <rect x="180" y="220" width="100" height="8" rx="4" fill="#bfdbfe"/>
+  <rect x="180" y="245" width="80" height="8" rx="4" fill="#bfdbfe"/>
+  <rect x="180" y="270" width="110" height="8" rx="4" fill="#bfdbfe"/>
+  <!-- AI spark -->
+  <circle cx="340" cy="200" r="60" fill="#1e40af"/>
+  <path d="M340 155 l8 32 32 8 -32 8 -8 32 -8 -32 -32 -8 32 -8z" fill="white"/>
+</svg>

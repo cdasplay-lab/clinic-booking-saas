@@ -1,0 +1,7 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'>
+  <rect width='96' height='96' rx='18' fill='#2563eb'/>
+  <rect x='15' y='15' width='66' height='66' rx='9' fill='#1d4ed8'/>
+  <rect x='26' y='24' width='34' height='41' rx='2' fill='white'/>
+  <rect x='26' y='24' width='5' height='41' rx='2' fill='#93c5fd'/>
+  <text x='34' y='69' font-family='Arial' font-weight='bold' font-size='27' fill='#2563eb'>HP</text>
+</svg>
