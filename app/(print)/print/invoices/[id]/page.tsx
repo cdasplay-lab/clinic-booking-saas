@@ -4,6 +4,8 @@ import { redirect, notFound } from "next/navigation"
 import { getCountry } from "@/lib/countries"
 import { formatCurrency, formatDateShort } from "@/lib/utils"
 import PrintActions from "@/components/invoice/print-actions"
+import { buildZatcaTlv } from "@/lib/zatca"
+import QRCode from "qrcode"
 
 export default async function InvoicePrintPage({ params }: { params: { id: string } }) {
   const session = await auth()
@@ -28,6 +30,26 @@ export default async function InvoicePrintPage({ params }: { params: { id: strin
   const isOverdue = invoice.dueDate < new Date() && ["SENT", "PARTIAL"].includes(invoice.status)
   const hasVat = country.vatEnabled && Number(invoice.taxAmount) > 0
   const invoiceTitle = country.vatEnabled ? "فاتورة ضريبية" : "فاتورة"
+
+  // ZATCA QR Code (Saudi Arabia and other VAT countries)
+  let zatcaQrDataUrl: string | null = null
+  if (country.vatEnabled && org.taxNumber) {
+    try {
+      const tlv = buildZatcaTlv({
+        sellerName: org.name,
+        vatNumber: org.taxNumber,
+        invoiceDate: invoice.date,
+        invoiceTotal: Number(invoice.total),
+        vatAmount: Number(invoice.taxAmount),
+      })
+      zatcaQrDataUrl = await QRCode.toDataURL(tlv, {
+        type: "image/png",
+        width: 150,
+        margin: 1,
+        errorCorrectionLevel: "M",
+      })
+    } catch { /* skip QR if generation fails */ }
+  }
 
   const statusMap: Record<string, string> = {
     DRAFT: "مسودة", SENT: "مرسلة", PARTIAL: "مدفوع جزئياً",
@@ -197,6 +219,28 @@ export default async function InvoicePrintPage({ params }: { params: { id: strin
           .footer-brand span { color: #3b82f6; font-weight: 700; }
           .payment-info { font-size: 11px; color: #6b7280; text-align: left; }
 
+          .zatca-section {
+            margin-top: 24px;
+            padding: 16px;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+          }
+          .zatca-qr img { width: 120px; height: 120px; }
+          .zatca-text { font-size: 11px; color: #15803d; }
+          .zatca-text strong { font-size: 12px; display: block; margin-bottom: 4px; }
+          .zatca-tlv {
+            font-family: monospace;
+            font-size: 9px;
+            color: #6b7280;
+            word-break: break-all;
+            margin-top: 6px;
+            max-width: 400px;
+          }
+
           @media print {
             body { background: white; }
             .print-actions { display: none !important; }
@@ -328,6 +372,25 @@ export default async function InvoicePrintPage({ params }: { params: { id: strin
               <div className="notes-section" style={{ marginTop: "24px" }}>
                 <div className="notes-label">ملاحظات</div>
                 <div className="notes-text">{invoice.notes}</div>
+              </div>
+            )}
+
+            {/* ZATCA QR Code */}
+            {zatcaQrDataUrl && (
+              <div className="zatca-section">
+                <div className="zatca-qr">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={zatcaQrDataUrl} alt="ZATCA QR Code" />
+                </div>
+                <div className="zatca-text">
+                  <strong>رمز الاستجابة السريعة (ZATCA)</strong>
+                  <div>هذا الرمز مستوفٍ لمتطلبات هيئة الزكاة والضريبة والجمارك</div>
+                  {country.zatcaRequired && (
+                    <div style={{ marginTop: "4px" }}>
+                      الرقم الضريبي: {org.taxNumber}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

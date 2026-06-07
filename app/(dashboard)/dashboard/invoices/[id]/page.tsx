@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import AttachmentPanel from "@/components/attachments/attachment-panel"
 import SendInvoiceButton from "@/components/invoice/send-invoice-button"
+import ZatcaQrDisplay from "@/components/invoice/zatca-qr-display"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table"
 import { ArrowRight, Printer } from "lucide-react"
 import Link from "next/link"
@@ -197,6 +198,10 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
               <p className="text-sm font-medium text-gray-500 mb-1">ملاحظات:</p>
               <p className="text-sm text-gray-700 bg-gray-50 rounded p-3">{invoice.notes}</p>
             </div>
+          )}
+
+          {country.vatEnabled && org.taxNumber && (
+            <ZatcaQrDisplay invoiceId={params.id} vatNumber={org.taxNumber} />
           )}
 
           <div className="border-t pt-4">
