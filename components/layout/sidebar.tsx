@@ -7,7 +7,8 @@ import {
   LayoutDashboard, BookOpen, FileText, ShoppingCart, Package,
   CreditCard, Building2, BarChart3, Users, Settings, Bot,
   TrendingUp, Wallet, FileStack, Calculator, Briefcase,
-  ChevronDown, ChevronRight, DollarSign, MessageCircle, Shield, FileSpreadsheet, RefreshCw
+  ChevronDown, ChevronRight, DollarSign, MessageCircle, Shield, FileSpreadsheet, RefreshCw,
+  FileX2, FilePlus2
 } from "lucide-react"
 import { useState } from "react"
 
@@ -31,6 +32,7 @@ const navItems = [
     icon: TrendingUp,
     children: [
       { label: "الفواتير", href: "/dashboard/invoices", icon: FileText },
+      { label: "إشعارات الخصم", href: "/dashboard/credit-notes", icon: FileX2 },
       { label: "فواتير متكررة", href: "/dashboard/recurring", icon: RefreshCw },
       { label: "أوامر البيع", href: "/dashboard/sales-orders", icon: ShoppingCart },
       { label: "العملاء", href: "/dashboard/contacts/customers", icon: Users },
@@ -41,6 +43,7 @@ const navItems = [
     icon: ShoppingCart,
     children: [
       { label: "فواتير الموردين", href: "/dashboard/bills", icon: FileText },
+      { label: "إشعارات الإضافة", href: "/dashboard/debit-notes", icon: FilePlus2 },
       { label: "أوامر الشراء", href: "/dashboard/purchase-orders", icon: Package },
       { label: "الموردون", href: "/dashboard/contacts/vendors", icon: Users },
     ],

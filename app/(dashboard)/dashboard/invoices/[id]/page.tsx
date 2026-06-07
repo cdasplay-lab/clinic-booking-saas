@@ -11,7 +11,7 @@ import SendInvoiceButton from "@/components/invoice/send-invoice-button"
 import ZatcaQrDisplay from "@/components/invoice/zatca-qr-display"
 import TapPayButton from "@/components/invoice/tap-pay-button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table"
-import { ArrowRight, Printer } from "lucide-react"
+import { ArrowRight, Printer, FileX2 } from "lucide-react"
 import Link from "next/link"
 
 const statusConfig: Record<string, { label: string; color: string }> = {
@@ -58,6 +58,13 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
           <Link href="/dashboard/invoices"><ArrowRight className="h-4 w-4" /> الفواتير</Link>
         </Button>
         <div className="flex gap-2">
+          {["SENT", "PARTIAL", "PAID"].includes(invoice.status) && (
+            <Button variant="outline" size="sm" className="text-orange-600 border-orange-200 hover:bg-orange-50" asChild>
+              <Link href={`/dashboard/credit-notes/new?invoiceId=${params.id}`}>
+                <FileX2 className="h-4 w-4 ml-1" />إشعار خصم
+              </Link>
+            </Button>
+          )}
           <Button variant="outline" size="sm" asChild>
             <a href={`/print/invoices/${params.id}`} target="_blank" rel="noopener noreferrer">
               <Printer className="h-4 w-4" /> طباعة / PDF

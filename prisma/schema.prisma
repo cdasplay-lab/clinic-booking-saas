@@ -479,35 +479,45 @@ enum JournalStatus {
 // INVOICES (Sales)
 // ============================================================
 
-model Invoice {
-  id             String        @id @default(cuid())
-  organizationId String
-  contactId      String
-  arAccountId    String?
-  number         String
-  date           DateTime
-  dueDate        DateTime
-  currency       String        @default("SAR")
-  exchangeRate   Decimal       @default(1) @db.Decimal(18, 6)
-  subtotal       Decimal       @default(0) @db.Decimal(18, 4)
-  discountAmount Decimal       @default(0) @db.Decimal(18, 4)
-  taxAmount      Decimal       @default(0) @db.Decimal(18, 4)
-  total          Decimal       @default(0) @db.Decimal(18, 4)
-  amountPaid     Decimal       @default(0) @db.Decimal(18, 4)
-  amountDue      Decimal       @default(0) @db.Decimal(18, 4)
-  status         InvoiceStatus @default(DRAFT)
-  notes          String?
-  terms          String?
-  journalId      String?
-  salesOrderId   String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+enum InvoiceType {
+  INVOICE
+  CREDIT_NOTE
+}
 
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  contact        Contact       @relation(fields: [contactId], references: [id])
-  arAccount      Account?      @relation("ARAccount", fields: [arAccountId], references: [id])
-  items          InvoiceItem[]
-  payments       Payment[]
+model Invoice {
+  id                  String        @id @default(cuid())
+  organizationId      String
+  contactId           String
+  arAccountId         String?
+  number              String
+  type                InvoiceType   @default(INVOICE)
+  creditedInvoiceId   String?
+  reason              String?
+  date                DateTime
+  dueDate             DateTime
+  currency            String        @default("SAR")
+  exchangeRate        Decimal       @default(1) @db.Decimal(18, 6)
+  subtotal            Decimal       @default(0) @db.Decimal(18, 4)
+  discountAmount      Decimal       @default(0) @db.Decimal(18, 4)
+  taxAmount           Decimal       @default(0) @db.Decimal(18, 4)
+  total               Decimal       @default(0) @db.Decimal(18, 4)
+  amountPaid          Decimal       @default(0) @db.Decimal(18, 4)
+  amountDue           Decimal       @default(0) @db.Decimal(18, 4)
+  status              InvoiceStatus @default(DRAFT)
+  notes               String?
+  terms               String?
+  journalId           String?
+  salesOrderId        String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  organization        Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contact             Contact       @relation(fields: [contactId], references: [id])
+  arAccount           Account?      @relation("ARAccount", fields: [arAccountId], references: [id])
+  creditedInvoice     Invoice?      @relation("CreditNotes", fields: [creditedInvoiceId], references: [id])
+  creditNotes         Invoice[]     @relation("CreditNotes")
+  items               InvoiceItem[]
+  payments            Payment[]
 
   @@unique([organizationId, number])
 }
@@ -545,35 +555,45 @@ enum InvoiceStatus {
 // BILLS (Purchases)
 // ============================================================
 
-model Bill {
-  id             String      @id @default(cuid())
-  organizationId String
-  contactId      String
-  apAccountId    String?
-  number         String
-  vendorRef      String?
-  date           DateTime
-  dueDate        DateTime
-  currency       String      @default("SAR")
-  exchangeRate   Decimal     @default(1) @db.Decimal(18, 6)
-  subtotal       Decimal     @default(0) @db.Decimal(18, 4)
-  discountAmount Decimal     @default(0) @db.Decimal(18, 4)
-  taxAmount      Decimal     @default(0) @db.Decimal(18, 4)
-  total          Decimal     @default(0) @db.Decimal(18, 4)
-  amountPaid     Decimal     @default(0) @db.Decimal(18, 4)
-  amountDue      Decimal     @default(0) @db.Decimal(18, 4)
-  status         BillStatus  @default(DRAFT)
-  notes          String?
-  journalId      String?
-  purchaseOrderId String?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+enum BillType {
+  BILL
+  DEBIT_NOTE
+}
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  contact        Contact      @relation(fields: [contactId], references: [id])
-  apAccount      Account?     @relation("APAccount", fields: [apAccountId], references: [id])
-  items          BillItem[]
-  payments       Payment[]
+model Bill {
+  id               String      @id @default(cuid())
+  organizationId   String
+  contactId        String
+  apAccountId      String?
+  number           String
+  type             BillType    @default(BILL)
+  creditedBillId   String?
+  reason           String?
+  vendorRef        String?
+  date             DateTime
+  dueDate          DateTime
+  currency         String      @default("SAR")
+  exchangeRate     Decimal     @default(1) @db.Decimal(18, 6)
+  subtotal         Decimal     @default(0) @db.Decimal(18, 4)
+  discountAmount   Decimal     @default(0) @db.Decimal(18, 4)
+  taxAmount        Decimal     @default(0) @db.Decimal(18, 4)
+  total            Decimal     @default(0) @db.Decimal(18, 4)
+  amountPaid       Decimal     @default(0) @db.Decimal(18, 4)
+  amountDue        Decimal     @default(0) @db.Decimal(18, 4)
+  status           BillStatus  @default(DRAFT)
+  notes            String?
+  journalId        String?
+  purchaseOrderId  String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contact          Contact      @relation(fields: [contactId], references: [id])
+  apAccount        Account?     @relation("APAccount", fields: [apAccountId], references: [id])
+  creditedBill     Bill?        @relation("DebitNotes", fields: [creditedBillId], references: [id])
+  debitNotes       Bill[]       @relation("DebitNotes")
+  items            BillItem[]
+  payments         Payment[]
 
   @@unique([organizationId, number])
 }
