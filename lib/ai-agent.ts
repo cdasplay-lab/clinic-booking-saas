@@ -383,6 +383,62 @@ const AGENT_TOOLS: Anthropic.Tool[] = [
       required: ["type", "chequeNumber", "partyName", "amount", "dueDate"],
     },
   },
+  {
+    name: "get_vat_summary",
+    description: "يحسب صافي ضريبة القيمة المضافة المستحقة لفترة: ضريبة المخرجات (المبيعات) ناقص ضريبة المدخلات (المشتريات). للسؤال 'كم ضريبة أطلع؟'",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        period: { type: "string", enum: ["month", "quarter", "year"], description: "الفترة (افتراضي الشهر)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "get_account_balance",
+    description: "يجلب رصيد حساب معيّن بالاسم (مثل: البنك، الصندوق، العملاء). للسؤال 'شنو رصيد البنك؟'",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        accountName: { type: "string", description: "اسم الحساب أو جزء منه" },
+      },
+      required: ["accountName"],
+    },
+  },
+  {
+    name: "get_financial_statements",
+    description: "يجلب ملخص قائمة الدخل (الأرباح والخسائر) والميزانية العمومية. للأسئلة 'وين أرباحي؟' أو 'شنو ميزانيتي؟'",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        period: { type: "string", enum: ["month", "quarter", "year"], description: "فترة قائمة الدخل (افتراضي السنة)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "record_expense",
+    description: "يسجل مصروفاً نقدياً أو بنكياً مباشرة (مثل كهرباء، إيجار، رواتب) مع القيد المحاسبي. يبحث عن حساب المصروف المناسب بالاسم.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        expenseName: { type: "string", description: "نوع المصروف (كهرباء، إيجار، اتصالات، تسويق...)" },
+        amount:      { type: "number" },
+        paidFrom:    { type: "string", enum: ["CASH", "BANK"], description: "نقد أو بنك (افتراضي نقد)" },
+        description: { type: "string", description: "وصف اختياري" },
+      },
+      required: ["expenseName", "amount"],
+    },
+  },
+  {
+    name: "review_books",
+    description: "مراجعة شاملة لصحة الحسابات (مثل ما يسوي المحاسب آخر الشهر): فواتير متأخرة، شيكات مستحقة، مخزون سالب، مستندات مسودة، سيولة منخفضة. للسؤال 'هل في أخطاء بحساباتي؟'",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -901,6 +957,135 @@ async function executeTool(toolName: string, input: any, orgId: string): Promise
         return { success: true, message: `✅ تم تسجيل شيك ${isIncoming ? "وارد" : "صادر"} **${input.chequeNumber}** ${isIncoming ? "من" : "لـ"} "${input.partyName}" بمبلغ **${formatCurrency(amount)}** — يستحق ${new Date(input.dueDate).toLocaleDateString("ar-AE")}` }
       }
 
+      // ── VAT SUMMARY ─────────────────────────────────────────────────────────
+      case "get_vat_summary": {
+        const now = new Date()
+        const period = input.period || "month"
+        const from = period === "month"   ? new Date(now.getFullYear(), now.getMonth(), 1)
+                   : period === "quarter" ? new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
+                   : new Date(now.getFullYear(), 0, 1)
+
+        const [sales, purchases] = await Promise.all([
+          prisma.invoice.aggregate({ where: { organizationId: orgId, date: { gte: from }, status: { in: ["SENT", "PARTIAL", "PAID", "OVERDUE"] } }, _sum: { taxAmount: true, subtotal: true } }),
+          prisma.bill.aggregate({ where: { organizationId: orgId, date: { gte: from }, status: { in: ["OPEN", "PARTIAL", "PAID", "OVERDUE"] } }, _sum: { taxAmount: true, subtotal: true } }),
+        ])
+
+        const outputTax = round2(Number(sales._sum.taxAmount || 0))      // ضريبة المخرجات
+        const inputTax  = round2(Number(purchases._sum.taxAmount || 0))  // ضريبة المدخلات
+        const netVat    = round2(outputTax - inputTax)
+        const label = period === "month" ? "هذا الشهر" : period === "quarter" ? "هذا الربع" : "هذا العام"
+
+        return {
+          message: `ملخص ضريبة القيمة المضافة (${label}):\n• ضريبة المخرجات (على المبيعات): **${formatCurrency(outputTax)}**\n• ضريبة المدخلات (على المشتريات): **${formatCurrency(inputTax)}**\n• ${netVat >= 0 ? `الضريبة المستحقة للدفع: **${formatCurrency(netVat)}**` : `رصيد ضريبي لصالحك: **${formatCurrency(-netVat)}**`}`,
+        }
+      }
+
+      // ── ACCOUNT BALANCE ─────────────────────────────────────────────────────
+      case "get_account_balance": {
+        const account = await prisma.account.findFirst({
+          where: { organizationId: orgId, name: { contains: input.accountName, mode: "insensitive" } },
+          include: { journalLines: { where: { journal: { status: "POSTED" } } } },
+        })
+        if (!account) return { error: `لم يُوجد حساب باسم "${input.accountName}"` }
+
+        const debit  = account.journalLines.reduce((s, l) => s + Number(l.debit), 0)
+        const credit = account.journalLines.reduce((s, l) => s + Number(l.credit), 0)
+        const opening = Number(account.openingBalance)
+        const balance = account.nature === "DEBIT" ? round2(opening + debit - credit) : round2(opening + credit - debit)
+
+        return { message: `رصيد حساب "${account.name}": **${formatCurrency(balance)}**` }
+      }
+
+      // ── FINANCIAL STATEMENTS ────────────────────────────────────────────────
+      case "get_financial_statements": {
+        const now = new Date()
+        const period = input.period || "year"
+        const from = period === "month"   ? new Date(now.getFullYear(), now.getMonth(), 1)
+                   : period === "quarter" ? new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
+                   : new Date(now.getFullYear(), 0, 1)
+
+        const { getProfitAndLoss, getBalanceSheet } = await import("./accounting")
+        const [pl, bs] = await Promise.all([
+          getProfitAndLoss(orgId, from, now),
+          getBalanceSheet(orgId, now),
+        ])
+
+        return {
+          message: `📄 قائمة الدخل (${period === "month" ? "الشهر" : period === "quarter" ? "الربع" : "السنة"}):\n• الإيرادات: **${formatCurrency(pl.totalRevenue)}**\n• المصروفات: **${formatCurrency(pl.totalExpenses)}**\n• صافي ${pl.netProfit >= 0 ? "الربح" : "الخسارة"}: **${formatCurrency(Math.abs(pl.netProfit))}**\n\n📊 الميزانية العمومية:\n• الأصول: **${formatCurrency(bs.totalAssets)}**\n• الخصوم: **${formatCurrency(bs.totalLiabilities)}**\n• حقوق الملكية: **${formatCurrency(bs.totalEquity)}**\n• التوازن: ${Math.abs(bs.totalAssets - (bs.totalLiabilities + bs.totalEquity)) < 1 ? "✅ متوازنة" : "⚠️ غير متوازنة — راجع القيود"}`,
+        }
+      }
+
+      // ── RECORD EXPENSE ──────────────────────────────────────────────────────
+      case "record_expense": {
+        const amount = round2(Number(input.amount))
+        const paidFrom = input.paidFrom === "BANK" ? "BANK" : "CASH"
+
+        // Find expense account by name, fallback to generic "مصروفات أخرى"
+        let expenseAccount = await prisma.account.findFirst({
+          where: { organizationId: orgId, accountType: "EXPENSE", name: { contains: input.expenseName, mode: "insensitive" } },
+        })
+        if (!expenseAccount) {
+          expenseAccount = await prisma.account.findFirst({
+            where: { organizationId: orgId, accountType: "EXPENSE", name: { contains: "أخرى" } },
+          }) ?? await prisma.account.findFirst({ where: { organizationId: orgId, accountType: "EXPENSE" }, orderBy: { code: "desc" } })
+        }
+        const cashAccount = await prisma.account.findFirst({
+          where: { organizationId: orgId, accountType: paidFrom === "BANK" ? "BANK" : "CASH" },
+        })
+        if (!expenseAccount || !cashAccount) return { error: "لم أجد حساب المصروف أو النقدية" }
+
+        await createJournalEntry({
+          organizationId: orgId,
+          date: new Date(),
+          type: "PAYMENT",
+          description: input.description || `مصروف ${input.expenseName}`,
+          lines: [
+            { accountId: expenseAccount.id, debit: amount, credit: 0 },
+            { accountId: cashAccount.id,    debit: 0,      credit: amount },
+          ],
+        })
+
+        return { success: true, message: `✅ تم تسجيل مصروف **${expenseAccount.name}** بمبلغ **${formatCurrency(amount)}** (${paidFrom === "BANK" ? "من البنك" : "نقداً"})` }
+      }
+
+      // ── REVIEW BOOKS (month-end health check) ───────────────────────────────
+      case "review_books": {
+        const now = new Date()
+        const soon = new Date(now.getTime() + 7 * 86_400_000)
+
+        const [overdueInv, overdueBills, dueCheques, draftInv, draftBills, lowProducts, cashAccounts] = await Promise.all([
+          prisma.invoice.findMany({ where: { organizationId: orgId, status: { in: ["SENT", "PARTIAL", "OVERDUE"] }, dueDate: { lt: now } }, include: { contact: true } }),
+          prisma.bill.findMany({ where: { organizationId: orgId, status: { in: ["OPEN", "PARTIAL", "OVERDUE"] }, dueDate: { lt: now } }, include: { contact: true } }),
+          prisma.cheque.findMany({ where: { organizationId: orgId, status: { in: ["PENDING", "DEPOSITED"] }, dueDate: { lte: soon } } }),
+          prisma.invoice.count({ where: { organizationId: orgId, status: "DRAFT" } }),
+          prisma.bill.count({ where: { organizationId: orgId, status: "DRAFT" } }),
+          prisma.product.findMany({ where: { organizationId: orgId, isActive: true, isInventoried: true }, include: { stockLedger: true } }),
+          prisma.account.findMany({ where: { organizationId: orgId, accountType: { in: ["CASH", "BANK"] } }, include: { journalLines: { where: { journal: { status: "POSTED" } } } } }),
+        ])
+
+        const negStock = lowProducts.filter((p) => {
+          const s = p.stockLedger.reduce((sum, l) => l.type === "IN" ? sum + Number(l.quantity) : l.type === "OUT" ? sum - Number(l.quantity) : sum + Number(l.quantity), 0)
+          return s < 0
+        })
+        const cashBalance = cashAccounts.reduce((t, a) => t + a.journalLines.reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0), 0)
+        const overdueInvTotal = overdueInv.reduce((s, i) => s + Number(i.amountDue), 0)
+        const overdueBillTotal = overdueBills.reduce((s, b) => s + Number(b.amountDue), 0)
+
+        const issues: string[] = []
+        if (overdueInv.length)  issues.push(`🔴 ${overdueInv.length} فاتورة عميل متأخرة بمجموع ${formatCurrency(overdueInvTotal)} — تحتاج تحصيل`)
+        if (overdueBills.length) issues.push(`🟠 ${overdueBills.length} فاتورة مورد متأخرة بمجموع ${formatCurrency(overdueBillTotal)} — تحتاج دفع`)
+        if (dueCheques.length)  issues.push(`🟡 ${dueCheques.length} شيك يستحق خلال ٧ أيام`)
+        if (negStock.length)    issues.push(`🔴 ${negStock.length} منتج برصيد مخزون سالب — خطأ في الكميات: ${negStock.slice(0, 3).map((p) => p.name).join(", ")}`)
+        if (draftInv > 0)       issues.push(`🟡 ${draftInv} فاتورة مبيعات مسودة لم تُرحّل`)
+        if (draftBills > 0)     issues.push(`🟡 ${draftBills} فاتورة مورد مسودة لم تُرحّل`)
+        if (cashBalance < 0)    issues.push(`🔴 رصيد النقدية سالب (${formatCurrency(cashBalance)}) — خطأ محاسبي`)
+
+        if (issues.length === 0) {
+          return { message: "✅ راجعت الحسابات — كل شيء سليم: لا فواتير متأخرة، لا مخزون سالب، لا مسودات معلّقة، السيولة موجبة." }
+        }
+        return { message: `🔍 مراجعة الحسابات — وجدت ${issues.length} نقطة تحتاج انتباه:\n\n${issues.join("\n")}` }
+      }
+
       default:
         return { error: `أداة غير معروفة: ${toolName}` }
     }
@@ -927,9 +1112,12 @@ export async function runAIAgent(
     ? `ضريبة القيمة المضافة ${country.vatRate}% (${country.vatName}) — احسبها عند الطلب`
     : `لا ضريبة قيمة مضافة في ${country.nameAr}`
 
-  const systemPrompt = `أنت **محاسب قانوني خبير ومستشار مالي** لشركة "${orgName}". دورك مزدوج:
-1. تُنفّذ المهام المحاسبية مباشرةً (فواتير، دفعات، قيود)
-2. تُقدم تحليلاً مالياً ذكياً واستباقياً — لا تنتظر أن يسألك، انتبه للمشاكل وأشر إليها
+  const systemPrompt = `أنت **محاسب قانوني خبير ومستشار مالي** لشركة "${orgName}". أنت بديل المحاسب اليومي — صاحب الشركة يعتمد عليك في غياب محاسبه. دورك ثلاثي:
+1. تُنفّذ المهام المحاسبية مباشرةً (فواتير، دفعات، مصاريف، قيود، شيكات)
+2. تُجيب أي سؤال محاسبي يومي (الضريبة، أرصدة الحسابات، الأرباح، الميزانية، من يدين لي)
+3. تُراجع الحسابات وتكتشف الأخطاء استباقياً (استخدم review_books عند السؤال عن صحة الحسابات)
+
+⚠️ حدود مهنية: لا تُقدّم استشارة ضريبية رسمية أو تُقرّ بدل المحاسب القانوني في الأمور المعقّدة (التدقيق، الإقرارات الرسمية، النزاعات). في هذي الحالات نفّذ ما تقدر عليه ثم انصح بمراجعة المحاسب.
 
 معلومات الشركة:
 - الدولة: ${country.flag} ${country.nameAr} | العملة: ${country.currencyAr} (${country.currencySymbol})
