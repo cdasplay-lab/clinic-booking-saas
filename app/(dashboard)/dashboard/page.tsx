@@ -5,6 +5,7 @@ import { formatCurrency } from "@/lib/utils"
 import { getCountry } from "@/lib/countries"
 import DashboardCharts from "@/components/dashboard/charts"
 import DemoBanner from "@/components/dashboard/demo-banner"
+import { SetupChecklist } from "@/components/dashboard/setup-checklist"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   TrendingUp, TrendingDown, DollarSign, AlertCircle,
@@ -119,8 +120,26 @@ export default async function DashboardPage() {
   const receivablesTotal = Number(receivables._sum.amountDue || 0)
   const payablesTotal = Number(payables._sum.amountDue || 0)
 
-  // Show demo banner when org has no real data yet
-  const hasData = await prisma.contact.count({ where: { organizationId: orgId } })
+  // Setup checklist data
+  const [contactCount, productCount, invoiceCount, bankCount] = await Promise.all([
+    prisma.contact.count({ where: { organizationId: orgId } }),
+    prisma.product.count({ where: { organizationId: orgId } }),
+    prisma.invoice.count({ where: { organizationId: orgId, type: "INVOICE" } }),
+    prisma.bankAccount.count({ where: { organizationId: orgId } }),
+  ])
+  const hasData  = contactCount > 0
+  const org      = userOrg.organization
+  const profileDone = !!(org.address && org.taxNumber)
+
+  const checklistItems = [
+    { done: true,         label: "إنشاء الحساب",            href: "/dashboard/settings",                  cta: "الإعدادات" },
+    { done: profileDone,  label: "اكتمال بيانات الشركة",    href: "/dashboard/settings",                  cta: "أكمل البيانات" },
+    { done: contactCount > 0, label: "إضافة أول عميل",      href: "/dashboard/contacts/customers/new",    cta: "أضف عميلاً" },
+    { done: productCount > 0, label: "إضافة منتج أو خدمة",  href: "/dashboard/inventory/new",             cta: "أضف منتجاً" },
+    { done: invoiceCount > 0, label: "إنشاء أول فاتورة",    href: "/dashboard/invoices/new",              cta: "أنشئ فاتورة" },
+    { done: bankCount > 0,    label: "ربط حساب بنكي",       href: "/dashboard/banking",                   cta: "أضف حساباً" },
+  ]
+  const isNewOrg = !hasData && invoiceCount === 0
 
   return (
     <div className="space-y-6">
@@ -130,7 +149,10 @@ export default async function DashboardPage() {
       </div>
 
       {/* Demo data banner — shown only when org is empty */}
-      {hasData === 0 && <DemoBanner />}
+      {!hasData && <DemoBanner />}
+
+      {/* Setup checklist — shown until all steps are done */}
+      {isNewOrg && <SetupChecklist items={checklistItems} />}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
