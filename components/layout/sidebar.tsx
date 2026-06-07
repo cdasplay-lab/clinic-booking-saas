@@ -114,6 +114,11 @@ const navItems = [
     icon: Download,
   },
   {
+    label: "الفوترة والاشتراك",
+    href: "/dashboard/billing",
+    icon: CreditCard,
+  },
+  {
     label: "سجل التدقيق",
     href: "/dashboard/audit",
     icon: Shield,
