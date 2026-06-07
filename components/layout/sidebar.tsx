@@ -130,7 +130,7 @@ const navItems = [
   },
 ]
 
-export default function Sidebar({ org }: { org: any }) {
+export default function Sidebar({ org, onNavigate }: { org: any; onNavigate?: () => void }) {
   const pathname = usePathname()
   const [openSections, setOpenSections] = useState<string[]>(["المحاسبة", "المبيعات"])
   const country = getCountry(org.country || "SA")
@@ -184,6 +184,7 @@ export default function Sidebar({ org }: { org: any }) {
                       <Link
                         key={child.href}
                         href={child.href}
+                        onClick={onNavigate}
                         className={cn(
                           "flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors mb-0.5",
                           pathname === child.href
@@ -205,6 +206,7 @@ export default function Sidebar({ org }: { org: any }) {
             <Link
               key={item.href}
               href={item.href!}
+              onClick={onNavigate}
               className={cn(
                 "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors mb-1",
                 pathname === item.href

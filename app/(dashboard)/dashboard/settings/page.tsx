@@ -4,7 +4,7 @@ import { redirect } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { CreditCard, Users, Shield, CheckCircle2, Sparkles, Bell } from "lucide-react"
+import { CreditCard, Users, Shield, CheckCircle2, Sparkles, Bell, Hash } from "lucide-react"
 import { getCountry } from "@/lib/countries"
 import OrgSettingsForm from "@/components/settings/org-settings-form"
 import DemoSeedButton from "@/components/settings/demo-seed-button"
@@ -109,7 +109,7 @@ export default async function SettingsPage() {
             </Badge>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {plans.map((plan) => (
               <div
                 key={plan.name}
@@ -141,6 +141,28 @@ export default async function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Document Numbering */}
+      {isOwnerOrAdmin && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Hash className="h-5 w-5 text-indigo-600" />
+                <CardTitle>ترقيم المستندات</CardTitle>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-600">خصص بادئة وتنسيق الأرقام للفواتير وعروض الأسعار والمزيد</p>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/dashboard/settings/numbering">تخصيص الأرقام</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Users */}
       <Card>

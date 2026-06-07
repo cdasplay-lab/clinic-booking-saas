@@ -54,7 +54,7 @@ export default async function QuotesPage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "مسودات", count: totals.draft,     color: "text-gray-600" },
           { label: "مرسلة",  count: totals.sent,      color: "text-blue-600" },

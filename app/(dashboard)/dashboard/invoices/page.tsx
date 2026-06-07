@@ -59,7 +59,7 @@ export default async function InvoicesPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg border p-4">
           <p className="text-sm text-gray-500">مسودات</p>
           <p className="text-xl font-bold">{formatCurrency(totals.draft)}</p>
@@ -74,7 +74,7 @@ export default async function InvoicesPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border overflow-hidden">
+      <div className="bg-white rounded-lg border overflow-hidden overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

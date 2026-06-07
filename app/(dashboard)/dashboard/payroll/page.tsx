@@ -52,7 +52,7 @@ export default async function PayrollPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-gray-500">إجمالي الرواتب الشهرية</p>
