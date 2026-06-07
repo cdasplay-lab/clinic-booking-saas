@@ -5,8 +5,9 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus } from "lucide-react"
+import { Plus, CreditCard } from "lucide-react"
 import { formatCurrency, formatDateShort } from "@/lib/utils"
+import { EmptyState } from "@/components/ui/empty-state"
 
 export default async function PaymentsPage() {
   const session = await auth()
@@ -59,6 +60,19 @@ export default async function PaymentsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {payments.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6}>
+                  <EmptyState
+                    icon={CreditCard}
+                    title="لا توجد مدفوعات بعد"
+                    description="سجّل دفعة واردة من عميل أو دفعة صادرة لمورد لتتبع تدفقاتك المالية"
+                    href="/dashboard/payments/new"
+                    ctaLabel="تسجيل دفعة"
+                  />
+                </TableCell>
+              </TableRow>
+            )}
             {payments.map((p) => (
               <TableRow key={p.id}>
                 <TableCell>{formatDateShort(p.date)}</TableCell>

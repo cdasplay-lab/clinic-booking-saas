@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Building2, TrendingUp, TrendingDown } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { EmptyState } from "@/components/ui/empty-state"
 
 export default async function BankingPage() {
   const session = await auth()
@@ -44,12 +45,14 @@ export default async function BankingPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {bankAccounts.length === 0 ? (
-          <div className="col-span-3 text-center py-12 text-gray-500">
-            <Building2 className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-            <p>لا توجد حسابات بنكية بعد</p>
-            <Button className="mt-4" asChild>
-              <Link href="/dashboard/banking/new">إضافة حساب بنكي</Link>
-            </Button>
+          <div className="col-span-3">
+            <EmptyState
+              icon={Building2}
+              title="لا توجد حسابات بنكية بعد"
+              description="أضف حساباتك البنكية وصناديقك النقدية لتتبع أرصدتك وتسوية كشوفاتك البنكية"
+              href="/dashboard/banking/new"
+              ctaLabel="إضافة حساب بنكي"
+            />
           </div>
         ) : (
           bankAccounts.map((ba) => (

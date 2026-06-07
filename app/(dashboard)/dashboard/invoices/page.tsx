@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, FileText } from "lucide-react"
 import { formatCurrency, formatDateShort } from "@/lib/utils"
 import ExportButton from "@/components/reports/export-button"
+import { EmptyState } from "@/components/ui/empty-state"
 
 const statusLabels: Record<string, { label: string; variant: any }> = {
   DRAFT: { label: "مسودة", variant: "secondary" },
@@ -90,9 +91,16 @@ export default async function InvoicesPage() {
           <TableBody>
             {invoices.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-gray-500">
-                  <FileText className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                  لا توجد فواتير بعد
+                <TableCell colSpan={8}>
+                  <EmptyState
+                    icon={FileText}
+                    title="لا توجد فواتير بعد"
+                    description="أنشئ أول فاتورة لعميلك وابدأ في تتبع مدفوعاتك بشكل احترافي"
+                    href="/dashboard/invoices/new"
+                    ctaLabel="فاتورة جديدة"
+                    secondaryHref="/dashboard/contacts/customers/new"
+                    secondaryLabel="أضف عميلاً أولاً"
+                  />
                 </TableCell>
               </TableRow>
             ) : (

@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, FileText } from "lucide-react"
 import { formatCurrency, formatDateShort } from "@/lib/utils"
 import ExportButton from "@/components/reports/export-button"
+import { EmptyState } from "@/components/ui/empty-state"
 
 export default async function BillsPage() {
   const session = await auth()
@@ -68,9 +69,16 @@ export default async function BillsPage() {
           <TableBody>
             {bills.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-gray-500">
-                  <FileText className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                  لا توجد فواتير موردين بعد
+                <TableCell colSpan={8}>
+                  <EmptyState
+                    icon={FileText}
+                    title="لا توجد فواتير موردين بعد"
+                    description="سجّل فواتير الموردين والمشتريات لتتبع ذممك الدائنة ومصروفاتك"
+                    href="/dashboard/bills/new"
+                    ctaLabel="فاتورة مورد جديدة"
+                    secondaryHref="/dashboard/contacts/vendors/new"
+                    secondaryLabel="أضف مورداً أولاً"
+                  />
                 </TableCell>
               </TableRow>
             ) : (

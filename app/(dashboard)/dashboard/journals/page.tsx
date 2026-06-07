@@ -5,8 +5,9 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus } from "lucide-react"
+import { Plus, FileStack } from "lucide-react"
 import { formatCurrency, formatDateShort } from "@/lib/utils"
+import { EmptyState } from "@/components/ui/empty-state"
 import ExportButton from "@/components/reports/export-button"
 
 const typeLabels: Record<string, string> = {
@@ -71,6 +72,19 @@ export default async function JournalsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {journals.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={8}>
+                  <EmptyState
+                    icon={FileStack}
+                    title="لا توجد قيود يومية بعد"
+                    description="القيود اليومية هي أساس المحاسبة المزدوجة. تُنشأ تلقائياً مع كل فاتورة ودفعة، أو يمكنك إنشاء قيد يدوي"
+                    href="/dashboard/journals/new"
+                    ctaLabel="قيد يدوي جديد"
+                  />
+                </TableCell>
+              </TableRow>
+            )}
             {journals.map((j) => (
               <TableRow key={j.id}>
                 <TableCell className="font-mono text-sm">{j.number}</TableCell>
