@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   if (!userOrg) return NextResponse.json({ error: "No organization" }, { status: 400 })
 
   const body = await req.json()
-  const { code, name, description, unit, category, salePrice, purchasePrice, reorderLevel, isInventoried } = body
+  const { code, name, description, unit, category, salePrice, purchasePrice, reorderLevel, isInventoried, barcode } = body
 
   if (!code || !name) return NextResponse.json({ error: "الكود والاسم مطلوبان" }, { status: 400 })
 
@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
       description,
       unit: unit || "PCS",
       category,
+      barcode: barcode || null,
       salePrice: parseFloat(salePrice) || 0,
       purchasePrice: parseFloat(purchasePrice) || 0,
       reorderLevel: parseFloat(reorderLevel) || 0,

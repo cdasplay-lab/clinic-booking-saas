@@ -8,7 +8,7 @@ import {
   CreditCard, Building2, BarChart3, Users, Settings, Bot,
   TrendingUp, Wallet, FileStack, Calculator, Briefcase,
   ChevronDown, ChevronRight, DollarSign, MessageCircle, Shield, FileSpreadsheet, RefreshCw,
-  FileX2, FilePlus2, Clock, ClipboardList, Layers, Download
+  FileX2, FilePlus2, Clock, ClipboardList, Layers, Download, Store
 } from "lucide-react"
 import { useState } from "react"
 
@@ -61,6 +61,14 @@ const navItems = [
     children: [
       { label: "الحسابات البنكية", href: "/dashboard/banking", icon: Building2 },
       { label: "التسوية البنكية", href: "/dashboard/banking/reconcile", icon: Wallet },
+    ],
+  },
+  {
+    label: "نقطة البيع",
+    icon: Store,
+    children: [
+      { label: "الكاشير", href: "/dashboard/pos", icon: Store },
+      { label: "تقرير اليوم", href: "/dashboard/pos/report", icon: BarChart3 },
     ],
   },
   {

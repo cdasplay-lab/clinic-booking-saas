@@ -12,7 +12,7 @@ export default function NewProductPage() {
   const router = useRouter()
   const [form, setForm] = useState({
     code: "", name: "", description: "", unit: "PCS",
-    category: "", salePrice: "0", purchasePrice: "0", reorderLevel: "0",
+    category: "", salePrice: "0", purchasePrice: "0", reorderLevel: "0", barcode: "",
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -43,6 +43,7 @@ export default function NewProductPage() {
               <div className="space-y-2"><Label>الكود *</Label><Input value={form.code} onChange={(e) => setForm({...form, code: e.target.value})} required /></div>
               <div className="space-y-2"><Label>الوحدة</Label><Input value={form.unit} onChange={(e) => setForm({...form, unit: e.target.value})} /></div>
               <div className="col-span-2 space-y-2"><Label>الاسم *</Label><Input value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} required /></div>
+              <div className="space-y-2"><Label>الباركود</Label><Input value={form.barcode} onChange={(e) => setForm({...form, barcode: e.target.value})} placeholder="امسح الباركود أو اكتبه" /></div>
               <div className="space-y-2"><Label>الفئة</Label><Input value={form.category} onChange={(e) => setForm({...form, category: e.target.value})} /></div>
               <div className="space-y-2"><Label>حد إعادة الطلب</Label><Input type="number" value={form.reorderLevel} onChange={(e) => setForm({...form, reorderLevel: e.target.value})} /></div>
               <div className="space-y-2"><Label>سعر البيع</Label><Input type="number" step="0.01" value={form.salePrice} onChange={(e) => setForm({...form, salePrice: e.target.value})} /></div>

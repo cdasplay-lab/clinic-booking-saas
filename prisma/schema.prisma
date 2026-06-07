@@ -67,6 +67,8 @@ model Organization {
   auditLogs        AuditLog[]
   recurringInvoices RecurringInvoice[]
   notifications    Notification[]
+  posSessions      PosSession[]
+  posTransactions  PosTransaction[]
 }
 
 enum Plan {
@@ -96,6 +98,7 @@ model User {
   attachments   Attachment[]
   auditLogs     AuditLog[]
   notifications Notification[]
+  posSessions   PosSession[]
 }
 
 model Session {
@@ -345,6 +348,7 @@ model Product {
   salePrice      Decimal        @default(0) @db.Decimal(18, 4)
   purchasePrice  Decimal        @default(0) @db.Decimal(18, 4)
   reorderLevel   Decimal        @default(0) @db.Decimal(18, 4)
+  barcode        String?
   isInventoried  Boolean        @default(true)
   isActive       Boolean        @default(true)
   createdAt      DateTime       @default(now())
@@ -356,6 +360,7 @@ model Product {
   stockLedger    StockLedger[]
   poItems        PurchaseOrderItem[]
   soItems        SalesOrderItem[]
+  posItems       PosTransactionItem[]
 
   @@unique([organizationId, code])
 }
@@ -371,6 +376,7 @@ model Warehouse {
 
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   stockLedger    StockLedger[]
+  posSessions    PosSession[]
 }
 
 model StockLedger {
@@ -1180,4 +1186,87 @@ enum RecurringStatus {
   ACTIVE
   PAUSED
   ENDED
+}
+
+// ============================================================
+// POINT OF SALE (POS)
+// ============================================================
+
+model PosSession {
+  id             String           @id @default(cuid())
+  organizationId String
+  warehouseId    String
+  cashierId      String
+  number         String
+  openedAt       DateTime         @default(now())
+  closedAt       DateTime?
+  openingBalance Decimal          @default(0) @db.Decimal(18, 4)
+  closingBalance Decimal?         @db.Decimal(18, 4)
+  totalSales     Decimal          @default(0) @db.Decimal(18, 4)
+  totalCash      Decimal          @default(0) @db.Decimal(18, 4)
+  totalCard      Decimal          @default(0) @db.Decimal(18, 4)
+  totalTransactions Int           @default(0)
+  status         PosSessionStatus @default(OPEN)
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  warehouse      Warehouse        @relation(fields: [warehouseId], references: [id])
+  cashier        User             @relation(fields: [cashierId], references: [id])
+  transactions   PosTransaction[]
+}
+
+model PosTransaction {
+  id             String               @id @default(cuid())
+  organizationId String
+  sessionId      String
+  number         String
+  date           DateTime             @default(now())
+  subtotal       Decimal              @db.Decimal(18, 4)
+  discountAmount Decimal              @default(0) @db.Decimal(18, 4)
+  taxAmount      Decimal              @default(0) @db.Decimal(18, 4)
+  total          Decimal              @db.Decimal(18, 4)
+  amountPaid     Decimal              @db.Decimal(18, 4)
+  change         Decimal              @default(0) @db.Decimal(18, 4)
+  paymentMethod  PosPayment           @default(CASH)
+  status         PosStatus            @default(COMPLETED)
+  notes          String?
+  createdAt      DateTime             @default(now())
+
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  session        PosSession           @relation(fields: [sessionId], references: [id])
+  items          PosTransactionItem[]
+}
+
+model PosTransactionItem {
+  id            String         @id @default(cuid())
+  transactionId String
+  productId     String
+  description   String
+  quantity      Decimal        @db.Decimal(18, 4)
+  unitPrice     Decimal        @db.Decimal(18, 4)
+  discount      Decimal        @default(0) @db.Decimal(18, 4)
+  total         Decimal        @db.Decimal(18, 4)
+
+  transaction   PosTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  product       Product        @relation(fields: [productId], references: [id])
+}
+
+enum PosSessionStatus {
+  OPEN
+  CLOSED
+}
+
+enum PosPayment {
+  CASH
+  CARD
+  TRANSFER
+  MIXED
+}
+
+enum PosStatus {
+  COMPLETED
+  REFUNDED
+  VOIDED
 }
