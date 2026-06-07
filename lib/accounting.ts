@@ -1,6 +1,11 @@
 import { prisma } from "./prisma"
 import { JournalType } from "@prisma/client"
 
+/** Round to 2 decimal places — use for all monetary intermediate values */
+export function round2(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
 export async function createJournalEntry({
   organizationId,
   date,

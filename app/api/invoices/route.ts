@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getNextDocNumber } from "@/lib/org"
-import { createJournalEntry } from "@/lib/accounting"
+import { createJournalEntry, round2 } from "@/lib/accounting"
 import { writeAuditLog } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
@@ -43,23 +43,23 @@ export async function POST(req: NextRequest) {
   let subtotal = 0
   let taxAmount = 0
   const lineItems = items.map((item: any) => {
-    const qty = parseFloat(item.quantity) || 0
+    const qty   = parseFloat(item.quantity)  || 0
     const price = parseFloat(item.unitPrice) || 0
-    const lineSubtotal = qty * price
-    const lineTax = item.taxAmount || 0
-    subtotal += lineSubtotal
-    taxAmount += lineTax
+    const lineSubtotal = round2(qty * price)
+    const lineTax      = round2(parseFloat(item.taxAmount) || 0)
+    subtotal   = round2(subtotal   + lineSubtotal)
+    taxAmount  = round2(taxAmount  + lineTax)
     return {
       description: item.description,
-      quantity: qty,
-      unitPrice: price,
-      taxRateId: item.taxRateId || null,
-      taxAmount: lineTax,
-      total: lineSubtotal + lineTax,
+      quantity:    qty,
+      unitPrice:   price,
+      taxRateId:   item.taxRateId || null,
+      taxAmount:   lineTax,
+      total:       round2(lineSubtotal + lineTax),
     }
   })
 
-  const total = subtotal + taxAmount
+  const total = round2(subtotal + taxAmount)
   const number = await getNextDocNumber(orgId, "INVOICE")
 
   // Find AR account
@@ -90,9 +90,8 @@ export async function POST(req: NextRequest) {
 
   // Create journal entry if we have accounts
   if (arAccount && revenueAccount) {
-    const journalLines = [
+    const journalLines: Array<{ accountId: string; debit: number; credit: number; description: string }> = [
       { accountId: arAccount.id, debit: total, credit: 0, description: `فاتورة ${number}` },
-      { accountId: revenueAccount.id, debit: 0, credit: subtotal, description: `إيرادات فاتورة ${number}` },
     ]
 
     if (taxAmount > 0) {
@@ -100,8 +99,15 @@ export async function POST(req: NextRequest) {
         where: { organizationId: orgId, accountType: "TAX" },
       })
       if (taxAccount) {
-        journalLines.push({ accountId: taxAccount.id, debit: 0, credit: taxAmount, description: `ضريبة فاتورة ${number}` })
+        // Separate tax liability account: DR AR = CR Revenue + CR Tax
+        journalLines.push({ accountId: revenueAccount.id, debit: 0, credit: subtotal, description: `إيرادات فاتورة ${number}` })
+        journalLines.push({ accountId: taxAccount.id,     debit: 0, credit: taxAmount, description: `ضريبة مبيعات ${number}` })
+      } else {
+        // No tax account configured — credit full total to revenue (tax included)
+        journalLines.push({ accountId: revenueAccount.id, debit: 0, credit: total, description: `إيرادات فاتورة ${number}` })
       }
+    } else {
+      journalLines.push({ accountId: revenueAccount.id, debit: 0, credit: total, description: `إيرادات فاتورة ${number}` })
     }
 
     await createJournalEntry({

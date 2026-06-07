@@ -31,13 +31,17 @@ export async function GET(req: NextRequest) {
   const inputVAT = Number(purchaseTax._sum.taxAmount || 0)
   const netVAT = outputVAT - inputVAT
 
+  // salesTotal / purchasesTotal = taxable base (excl. tax)
+  const salesTotal     = Number(salesTax._sum.total     || 0) - outputVAT
+  const purchasesTotal = Number(purchaseTax._sum.total  || 0) - inputVAT
+
   return NextResponse.json({
     period: `الربع ${quarter} - ${year}`,
     startDate,
     endDate,
-    salesTotal: Number(salesTax._sum.total || 0),
+    salesTotal,
     outputVAT,
-    purchasesTotal: Number(purchaseTax._sum.total || 0),
+    purchasesTotal,
     inputVAT,
     netVATDue: netVAT,
     isPayable: netVAT > 0,

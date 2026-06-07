@@ -37,9 +37,9 @@ export default function NewBillPage() {
     const price = parseFloat(updated[index].unitPrice) || 0
     const subtotal = qty * price
     const tax = taxRates.find((t) => t.id === updated[index].taxRateId)
-    const taxAmt = tax ? subtotal * (Number(tax.rate) / 100) : 0
+    const taxAmt = tax ? Math.round(subtotal * (Number(tax.rate) / 100) * 100) / 100 : 0
     updated[index].taxAmount = taxAmt
-    updated[index].total = subtotal + taxAmt
+    updated[index].total = Math.round((subtotal + taxAmt) * 100) / 100
     setItems(updated)
   }
 
