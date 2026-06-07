@@ -28,6 +28,8 @@ model Organization {
   planExpiresAt    DateTime?
   stripeCustomerId String?
   stripeSubId      String?
+  reminderEnabled  Boolean  @default(false)
+  reminderDays     String   @default("1,7,14")
   isActive         Boolean  @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -508,6 +510,8 @@ model Invoice {
   terms               String?
   journalId           String?
   salesOrderId        String?
+  lastReminderAt      DateTime?
+  reminderCount       Int           @default(0)
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
