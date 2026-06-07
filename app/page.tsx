@@ -1,13 +1,13 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
-import { motion, useInView, useMotionValue, useSpring, AnimatePresence } from "framer-motion"
+import { motion, useInView, AnimatePresence } from "framer-motion"
 import {
-  Bot, BarChart3, Shield, Zap, Globe, CheckCircle2, ArrowLeft,
-  TrendingUp, Package, CreditCard, Users, ChevronDown, Sparkles,
+  Bot, BarChart3, Shield, Zap, CheckCircle2, ArrowLeft,
+  TrendingUp, Package, Users, ChevronDown, Sparkles,
   MessageSquare, Play, Star, Building2, Store, Stethoscope,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import DashboardMockup from "@/components/landing/dashboard-mockup"
 
 // ─── TRANSLATIONS ────────────────────────────────────────────────────────────
 const T = {
@@ -271,102 +271,119 @@ export default function LandingPage() {
       </motion.header>
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
+      <section className="relative min-h-screen flex items-center pt-24 pb-16 overflow-hidden">
         <GridGlow />
         <Particles />
 
-        <div className="relative z-10 container mx-auto px-4 text-center">
-          {/* Badge */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 bg-blue-600/10 border border-blue-500/20 rounded-full px-4 py-2 text-sm text-blue-400 mb-8"
-          >
-            <motion.div animate={{ rotate: 360 }} transition={{ duration: 3, repeat: Infinity, ease: "linear" }}>
-              <Sparkles className="h-4 w-4" />
-            </motion.div>
-            {t.badge}
-          </motion.div>
+        <div className="relative z-10 container mx-auto px-4">
+          <div className={`flex flex-col lg:flex-row items-center gap-12 lg:gap-16 ${isRtl ? "lg:flex-row" : "lg:flex-row-reverse"}`}>
 
-          {/* Headline */}
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-            className="text-5xl md:text-7xl font-extrabold leading-tight mb-6"
-          >
-            <span className="text-white">{t.h1a} </span>
-            <br />
-            <span className="bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">
-              {t.h1b}
-            </span>
-            <br />
-            <span className="text-white">{t.h1c}</span>
-          </motion.h1>
-
-          {/* Subheadline */}
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.4 }}
-            className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed"
-          >
-            {t.sub}
-          </motion.p>
-
-          {/* CTAs */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.6 }}
-            className="flex items-center justify-center gap-4 flex-wrap"
-          >
-            <Link href="/register">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.97 }}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-2xl shadow-blue-600/30 transition-all flex items-center gap-2"
+            {/* ── Left: Text ── */}
+            <div className="flex-1 max-w-xl">
+              {/* Badge */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5 }}
+                className="inline-flex items-center gap-2 bg-blue-600/10 border border-blue-500/20 rounded-full px-4 py-2 text-sm text-blue-400 mb-7"
               >
-                {t.cta1}
-                <ArrowLeft className={`h-5 w-5 ${isRtl ? "" : "rotate-180"}`} />
-              </motion.button>
-            </Link>
-            <motion.a
-              href="#ai"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.97 }}
-              className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-gray-300 hover:text-white px-8 py-4 rounded-2xl font-medium text-lg transition-all"
-            >
-              <Play className="h-5 w-5 text-blue-400" />
-              {t.cta2}
-            </motion.a>
-          </motion.div>
+                <motion.div animate={{ rotate: 360 }} transition={{ duration: 3, repeat: Infinity, ease: "linear" }}>
+                  <Sparkles className="h-4 w-4" />
+                </motion.div>
+                {t.badge}
+              </motion.div>
 
-          {/* Stats */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.9 }}
-            className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-2xl mx-auto"
-          >
-            {t.statsVal.map((val, i) => (
-              <div key={i} className="text-center">
-                <div className="text-3xl font-extrabold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                  <Counter value={val} />
-                </div>
-                <div className="text-xs text-gray-500 mt-1">{t.statsLabel[i]}</div>
-              </div>
-            ))}
-          </motion.div>
+              {/* Headline */}
+              <motion.h1
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.15 }}
+                className="text-5xl md:text-6xl font-extrabold leading-tight mb-5"
+              >
+                <span className="text-white">{t.h1a} </span>
+                <span className="bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">{t.h1b}</span>
+                <br />
+                <span className="text-white">{t.h1c}</span>
+              </motion.h1>
+
+              {/* Subheadline */}
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.3 }}
+                className="text-lg text-gray-400 mb-8 leading-relaxed"
+              >
+                {t.sub}
+              </motion.p>
+
+              {/* CTAs */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.45 }}
+                className="flex items-center gap-4 flex-wrap"
+              >
+                <Link href="/register">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.97 }}
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-7 py-3.5 rounded-2xl font-bold text-base shadow-2xl shadow-blue-600/30 transition-all flex items-center gap-2"
+                  >
+                    {t.cta1}
+                    <ArrowLeft className={`h-4 w-4 ${isRtl ? "" : "rotate-180"}`} />
+                  </motion.button>
+                </Link>
+                <motion.a
+                  href="#ai"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-gray-300 hover:text-white px-7 py-3.5 rounded-2xl font-medium text-base transition-all"
+                >
+                  <Play className="h-4 w-4 text-blue-400" />
+                  {t.cta2}
+                </motion.a>
+              </motion.div>
+
+              {/* Stats row */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.65 }}
+                className="mt-10 grid grid-cols-4 gap-4"
+              >
+                {t.statsVal.map((val, i) => (
+                  <div key={i}>
+                    <div className="text-xl font-extrabold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+                      <Counter value={val} />
+                    </div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">{t.statsLabel[i]}</div>
+                  </div>
+                ))}
+              </motion.div>
+            </div>
+
+            {/* ── Right: Mockup ── */}
+            <motion.div
+              initial={{ opacity: 0, y: 40, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.9, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              className="flex-1 w-full lg:max-w-[460px] relative"
+            >
+              {/* Glow behind mockup */}
+              <div className="absolute inset-0 bg-blue-600/10 rounded-3xl blur-3xl -z-10 scale-90" />
+              <div className="absolute inset-0 bg-indigo-600/5 rounded-3xl blur-2xl -z-10" />
+              <DashboardMockup />
+            </motion.div>
+
+          </div>
 
           {/* Scroll indicator */}
           <motion.div
             animate={{ y: [0, 10, 0] }}
             transition={{ duration: 2, repeat: Infinity }}
-            className="mt-16 flex justify-center"
+            className="mt-12 flex justify-center"
           >
-            <ChevronDown className="h-6 w-6 text-gray-600" />
+            <ChevronDown className="h-5 w-5 text-gray-700" />
           </motion.div>
         </div>
       </section>
