@@ -42,7 +42,7 @@ export default async function VendorsPage() {
                   <TableCell>{v.email || "-"}</TableCell>
                   <TableCell>{v.taxNumber || "-"}</TableCell>
                   <TableCell className={`text-left font-medium ${outstanding > 0 ? "text-red-600" : "text-gray-500"}`}>{formatCurrency(outstanding)}</TableCell>
-                  <TableCell><Button variant="ghost" size="sm" asChild><Link href={`/dashboard/contacts/${v.id}`}>عرض</Link></Button></TableCell>
+                  <TableCell><Button variant="ghost" size="sm" asChild><Link href={`/dashboard/contacts/${v.id}`}>كشف حساب</Link></Button></TableCell>
                 </TableRow>
               )
             })}

@@ -80,7 +80,7 @@ export default async function CustomersPage() {
                     </TableCell>
                     <TableCell>
                       <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/dashboard/contacts/${c.id}`}>عرض</Link>
+                        <Link href={`/dashboard/contacts/${c.id}`}>كشف حساب</Link>
                       </Button>
                     </TableCell>
                   </TableRow>
