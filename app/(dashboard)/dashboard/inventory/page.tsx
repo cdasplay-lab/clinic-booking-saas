@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Package, AlertTriangle } from "lucide-react"
+import { Plus, Package, AlertTriangle, ClipboardList } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 
 export default async function InventoryPage() {
@@ -26,9 +26,12 @@ export default async function InventoryPage() {
   })
 
   const productsWithStock = products.map((p) => {
-    const totalIn = p.stockLedger.filter((s) => s.type === "IN").reduce((sum, s) => sum + Number(s.quantity), 0)
-    const totalOut = p.stockLedger.filter((s) => s.type === "OUT").reduce((sum, s) => sum + Number(s.quantity), 0)
-    const currentStock = totalIn - totalOut
+    const currentStock = p.stockLedger.reduce((sum, s) => {
+      if (s.type === "IN")         return sum + Number(s.quantity)
+      if (s.type === "OUT")        return sum - Number(s.quantity)
+      if (s.type === "ADJUSTMENT") return sum + Number(s.quantity) // signed delta
+      return sum
+    }, 0)
     return { ...p, currentStock }
   })
 
@@ -39,12 +42,20 @@ export default async function InventoryPage() {
           <h1 className="text-2xl font-bold">إدارة المخزون</h1>
           <p className="text-sm text-gray-500">{products.length} منتج</p>
         </div>
-        <Button asChild>
-          <Link href="/dashboard/inventory/new">
-            <Plus className="h-4 w-4" />
-            منتج جديد
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/dashboard/inventory/adjust">
+              <ClipboardList className="h-4 w-4" />
+              جرد المخزون
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/dashboard/inventory/new">
+              <Plus className="h-4 w-4" />
+              منتج جديد
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg border overflow-hidden">
@@ -72,9 +83,13 @@ export default async function InventoryPage() {
               productsWithStock.map((p) => {
                 const isLow = p.currentStock <= Number(p.reorderLevel) && p.isInventoried
                 return (
-                  <TableRow key={p.id}>
+                  <TableRow key={p.id} className="hover:bg-gray-50">
                     <TableCell className="font-mono text-sm">{p.code}</TableCell>
-                    <TableCell className="font-medium">{p.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link href={`/dashboard/inventory/${p.id}`} className="hover:underline text-blue-600">
+                        {p.name}
+                      </Link>
+                    </TableCell>
                     <TableCell>{p.category || "-"}</TableCell>
                     <TableCell className="text-left">{formatCurrency(Number(p.salePrice))}</TableCell>
                     <TableCell className="text-left">{formatCurrency(Number(p.purchasePrice))}</TableCell>

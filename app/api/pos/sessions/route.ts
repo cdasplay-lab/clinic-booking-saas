@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { getNextDocNumber } from "@/lib/org"
+import { getNextDocNumber, getOrCreateDefaultWarehouse } from "@/lib/org"
 
 // GET — current open session for this cashier
 export async function GET() {
@@ -46,14 +46,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const openingBalance = Number(body.openingBalance) || 0
 
-  // Get default warehouse
-  const warehouse = await prisma.warehouse.findFirst({
-    where: { organizationId: orgId, isDefault: true },
-  }) ?? await prisma.warehouse.findFirst({ where: { organizationId: orgId } })
-
-  if (!warehouse) {
-    return NextResponse.json({ error: "لا يوجد مستودع. أضف مستودعاً أولاً من إعدادات المخزون." }, { status: 400 })
-  }
+  const warehouse = await getOrCreateDefaultWarehouse(orgId)
 
   const number = await getNextDocNumber(orgId, "POS")
 

@@ -39,6 +39,21 @@ export async function getNextDocNumber(organizationId: string, docType: string) 
   return `${seq.prefix}-${padded}`
 }
 
+export async function getOrCreateDefaultWarehouse(organizationId: string) {
+  let warehouse = await prisma.warehouse.findFirst({
+    where: { organizationId, isDefault: true },
+  })
+  if (!warehouse) {
+    warehouse = await prisma.warehouse.findFirst({ where: { organizationId } })
+  }
+  if (!warehouse) {
+    warehouse = await prisma.warehouse.create({
+      data: { organizationId, name: "المستودع الرئيسي", code: "WH-01", isDefault: true },
+    })
+  }
+  return warehouse
+}
+
 function getPrefix(docType: string) {
   const map: Record<string, string> = {
     INVOICE: "INV",
