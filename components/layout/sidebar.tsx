@@ -7,7 +7,7 @@ import {
   LayoutDashboard, BookOpen, FileText, ShoppingCart, Package,
   CreditCard, Building2, BarChart3, Users, Settings, Bot,
   TrendingUp, Wallet, FileStack, Calculator, Briefcase,
-  ChevronDown, ChevronRight, DollarSign, MessageCircle
+  ChevronDown, ChevronRight, DollarSign, MessageCircle, Shield
 } from "lucide-react"
 import { useState } from "react"
 
@@ -92,6 +92,11 @@ const navItems = [
     label: "المساعد الذكي",
     href: "/dashboard/ai-agent",
     icon: Bot,
+  },
+  {
+    label: "سجل التدقيق",
+    href: "/dashboard/audit",
+    icon: Shield,
   },
   {
     label: "الإعدادات",

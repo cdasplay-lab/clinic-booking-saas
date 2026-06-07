@@ -59,6 +59,7 @@ model Organization {
   whatsappIntegration WhatsAppIntegration?
   pendingTransactions PendingTransaction[]
   attachments      Attachment[]
+  auditLogs        AuditLog[]
 }
 
 enum Plan {
@@ -83,6 +84,7 @@ model User {
   sessions      Session[]
   aiConversations AIConversation[]
   attachments   Attachment[]
+  auditLogs     AuditLog[]
 }
 
 model Session {
@@ -1042,4 +1044,28 @@ model Attachment {
 
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   uploader       User         @relation(fields: [uploadedBy], references: [id])
+}
+
+// ============================================================
+// AUDIT TRAIL
+// ============================================================
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  userName       String
+  action         String   // CREATE | UPDATE | DELETE | SEND | POST | CANCEL | PAY
+  entityType     String   // INVOICE | BILL | JOURNAL | CONTACT | PRODUCT | PAYMENT | SETTINGS | USER
+  entityId       String
+  entityLabel    String?  // human-readable label e.g. invoice number
+  changes        Json?    // { field: [oldValue, newValue] }
+  ipAddress      String?
+  createdAt      DateTime @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([organizationId, entityType, entityId])
 }

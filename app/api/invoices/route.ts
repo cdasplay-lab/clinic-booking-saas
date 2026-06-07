@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getNextDocNumber } from "@/lib/org"
 import { createJournalEntry } from "@/lib/accounting"
+import { writeAuditLog } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -118,6 +119,17 @@ export async function POST(req: NextRequest) {
       data: { status: "SENT" },
     })
   }
+
+  await writeAuditLog({
+    organizationId: orgId,
+    userId: session.user.id,
+    userName: session.user.name || session.user.email || "",
+    action: "CREATE",
+    entityType: "INVOICE",
+    entityId: invoice.id,
+    entityLabel: number,
+    ipAddress: req.headers.get("x-forwarded-for") || undefined,
+  })
 
   return NextResponse.json(invoice, { status: 201 })
 }

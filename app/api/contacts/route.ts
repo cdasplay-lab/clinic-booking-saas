@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { writeAuditLog } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -54,6 +55,17 @@ export async function POST(req: NextRequest) {
       paymentTerms: parseInt(paymentTerms) || 30,
       address,
     },
+  })
+
+  await writeAuditLog({
+    organizationId: userOrg.organizationId,
+    userId: session.user.id,
+    userName: session.user.name || session.user.email || "",
+    action: "CREATE",
+    entityType: "CONTACT",
+    entityId: contact.id,
+    entityLabel: contact.name,
+    ipAddress: req.headers.get("x-forwarded-for") || undefined,
   })
 
   return NextResponse.json(contact, { status: 201 })

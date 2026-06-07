@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { getCountry } from "@/lib/countries"
 import { formatCurrency, formatDateShort } from "@/lib/utils"
 import { createTransport, buildInvoiceEmail } from "@/lib/email"
+import { writeAuditLog } from "@/lib/audit"
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth()
@@ -73,6 +74,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       data: { status: "SENT" },
     })
   }
+
+  await writeAuditLog({
+    organizationId: userOrg.organizationId,
+    userId: session.user.id,
+    userName: session.user.name || session.user.email || "",
+    action: "SEND",
+    entityType: "INVOICE",
+    entityId: invoice.id,
+    entityLabel: invoice.number,
+    changes: { email: [null, toEmail] },
+    ipAddress: req.headers.get("x-forwarded-for") || undefined,
+  })
 
   return NextResponse.json({ success: true, to: toEmail })
 }

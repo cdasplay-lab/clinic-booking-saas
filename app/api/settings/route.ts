@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getCountry } from "@/lib/countries"
+import { writeAuditLog } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -46,6 +47,17 @@ export async function PATCH(req: NextRequest) {
       logo: logo?.trim() || null,
       fiscalYearStart: fiscalYearStart ? Number(fiscalYearStart) : 1,
     },
+  })
+
+  await writeAuditLog({
+    organizationId: userOrg.organizationId,
+    userId: session.user.id,
+    userName: session.user.name || session.user.email || "",
+    action: "UPDATE",
+    entityType: "SETTINGS",
+    entityId: userOrg.organizationId,
+    entityLabel: org.name,
+    ipAddress: req.headers.get("x-forwarded-for") || undefined,
   })
 
   return NextResponse.json(org)
