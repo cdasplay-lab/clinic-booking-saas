@@ -484,6 +484,7 @@ enum JournalStatus {
 enum InvoiceType {
   INVOICE
   CREDIT_NOTE
+  QUOTE
 }
 
 model Invoice {
@@ -495,6 +496,7 @@ model Invoice {
   type                InvoiceType   @default(INVOICE)
   creditedInvoiceId   String?
   reason              String?
+  convertedInvoiceId  String?
   date                DateTime
   dueDate             DateTime
   currency            String        @default("SAR")
@@ -553,6 +555,8 @@ enum InvoiceStatus {
   OVERDUE
   CANCELLED
   CREDIT_NOTE
+  ACCEPTED
+  CONVERTED
 }
 
 // ============================================================

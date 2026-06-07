@@ -28,7 +28,7 @@ export default async function InvoicesPage() {
   if (!userOrg) redirect("/onboarding")
 
   const invoices = await prisma.invoice.findMany({
-    where: { organizationId: userOrg.organizationId },
+    where: { organizationId: userOrg.organizationId, type: "INVOICE" },
     include: { contact: true },
     orderBy: { date: "desc" },
   })

@@ -8,7 +8,7 @@ import {
   CreditCard, Building2, BarChart3, Users, Settings, Bot,
   TrendingUp, Wallet, FileStack, Calculator, Briefcase,
   ChevronDown, ChevronRight, DollarSign, MessageCircle, Shield, FileSpreadsheet, RefreshCw,
-  FileX2, FilePlus2, Clock
+  FileX2, FilePlus2, Clock, ClipboardList
 } from "lucide-react"
 import { useState } from "react"
 
@@ -32,6 +32,7 @@ const navItems = [
     icon: TrendingUp,
     children: [
       { label: "الفواتير", href: "/dashboard/invoices", icon: FileText },
+      { label: "عروض الأسعار", href: "/dashboard/quotes", icon: ClipboardList },
       { label: "إشعارات الخصم", href: "/dashboard/credit-notes", icon: FileX2 },
       { label: "فواتير متكررة", href: "/dashboard/recurring", icon: RefreshCw },
       { label: "أوامر البيع", href: "/dashboard/sales-orders", icon: ShoppingCart },
