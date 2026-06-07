@@ -38,6 +38,9 @@ export default async function PayrollPage() {
           <p className="text-sm text-gray-500">{employees.length} موظف</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="ghost" asChild>
+            <Link href="/dashboard/payroll/employees">إدارة الموظفين</Link>
+          </Button>
           <Button variant="outline" asChild>
             <Link href="/dashboard/payroll/employees/new">
               <Plus className="h-4 w-4" />

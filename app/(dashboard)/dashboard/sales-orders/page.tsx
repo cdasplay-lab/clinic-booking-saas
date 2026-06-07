@@ -102,7 +102,9 @@ export default async function SalesOrdersPage() {
               return (
                 <TableRow key={order.id} className="hover:bg-gray-50">
                   <TableCell className="font-mono text-sm font-medium text-blue-600">
-                    {order.number}
+                    <Link href={`/dashboard/sales-orders/${order.id}`} className="hover:underline">
+                      {order.number}
+                    </Link>
                   </TableCell>
                   <TableCell>{order.contact.name}</TableCell>
                   <TableCell className="text-gray-500 text-sm">{formatDateShort(order.date)}</TableCell>

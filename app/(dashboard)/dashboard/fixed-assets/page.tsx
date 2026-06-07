@@ -69,8 +69,12 @@ export default async function FixedAssetsPage() {
               </TableRow>
             ) : (
               assets.map((a) => (
-                <TableRow key={a.id}>
-                  <TableCell className="font-medium">{a.name}</TableCell>
+                <TableRow key={a.id} className="hover:bg-gray-50">
+                  <TableCell className="font-medium">
+                    <Link href={`/dashboard/fixed-assets/${a.id}`} className="hover:underline text-blue-600">
+                      {a.name}
+                    </Link>
+                  </TableCell>
                   <TableCell>{a.category}</TableCell>
                   <TableCell>{formatDateShort(a.purchaseDate)}</TableCell>
                   <TableCell className="text-left">{formatCurrency(Number(a.purchasePrice))}</TableCell>
