@@ -79,6 +79,7 @@ const navItems = [
     children: [
       { label: "الميزانية العمومية", href: "/dashboard/reports/balance-sheet", icon: BarChart3 },
       { label: "الأرباح والخسائر", href: "/dashboard/reports/profit-loss", icon: TrendingUp },
+      { label: "التدفق النقدي", href: "/dashboard/reports/cash-flow", icon: Wallet },
       { label: "ميزان المراجعة", href: "/dashboard/reports/trial-balance", icon: FileText },
       { label: "دفتر اليومية", href: "/dashboard/reports/day-book", icon: BookOpen },
       { label: "تقرير ضريبة القيمة المضافة", href: "/dashboard/reports/vat", icon: DollarSign },
