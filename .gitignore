@@ -13,8 +13,8 @@ node_modules/
 out/
 build/
 
-# Prisma
-prisma/migrations/
+# Prisma — keep migrations tracked so Vercel can run migrate deploy
+# prisma/migrations/
 
 # Misc
 .DS_Store

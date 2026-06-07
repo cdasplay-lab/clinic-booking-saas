@@ -1,4 +1,7 @@
 {
+  "buildCommand": "prisma migrate deploy && next build",
+  "framework": "nextjs",
+  "regions": ["dxb1"],
   "crons": [
     {
       "path": "/api/recurring/generate",
