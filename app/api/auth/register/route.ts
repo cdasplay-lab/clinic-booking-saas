@@ -3,8 +3,18 @@ import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 import { generateSlug } from "@/lib/utils"
 import { getCountry } from "@/lib/countries"
+import { rateLimit, getClientId } from "@/lib/rate-limit"
 
 export async function POST(req: NextRequest) {
+  // 5 register attempts per IP per hour
+  const rl = rateLimit(`register:${getClientId(req)}`, { limit: 5, windowSec: 3600 })
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "لقد تجاوزت الحد المسموح به. حاول مجدداً بعد ساعة." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+    )
+  }
+
   try {
     const { name, email, password, orgName, country = "SA" } = await req.json()
 
@@ -40,9 +50,11 @@ export async function POST(req: NextRequest) {
               create: {
                 name: orgName,
                 slug,
-                country: countryConfig.code,
-                baseCurrency: countryConfig.currency,
+                country:         countryConfig.code,
+                baseCurrency:    countryConfig.currency,
                 fiscalYearStart: countryConfig.fiscalYearStart,
+                plan:            "PROFESSIONAL",
+                trialEndsAt:     new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
               },
             },
           },

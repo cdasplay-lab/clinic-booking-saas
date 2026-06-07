@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { stripe } from "@/lib/stripe"
 import { getCountry } from "@/lib/countries"
+import { rateLimit, getClientId } from "@/lib/rate-limit"
 
 // Stripe-supported currencies in our target markets
 const STRIPE_CURRENCIES = new Set(["SAR", "AED", "KWD", "QAR", "BHD", "OMR", "USD", "EUR", "GBP", "EGP"])
@@ -15,6 +16,12 @@ function toStripeAmount(amount: number, currency: string) {
 }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  // 10 checkout attempts per IP per 10 minutes (per invoice)
+  const rl = rateLimit(`pay:${getClientId(req)}:${params.id}`, { limit: 10, windowSec: 600 })
+  if (!rl.success) {
+    return NextResponse.json({ error: "محاولات كثيرة، حاول بعد قليل" }, { status: 429 })
+  }
+
   const invoice = await prisma.invoice.findUnique({
     where: { id: params.id },
     include: {

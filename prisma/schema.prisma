@@ -24,8 +24,9 @@ model Organization {
   taxNumber        String?
   fiscalYearStart  Int      @default(1) // Month: 1=Jan
   baseCurrency     String   @default("SAR")
-  plan             Plan     @default(FREE)
+  plan             Plan     @default(PROFESSIONAL)
   planExpiresAt    DateTime?
+  trialEndsAt      DateTime?
   stripeCustomerId String?
   stripeSubId      String?
   reminderEnabled  Boolean  @default(false)

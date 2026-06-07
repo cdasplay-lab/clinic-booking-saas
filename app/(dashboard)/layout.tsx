@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import Sidebar from "@/components/layout/sidebar"
 import Header from "@/components/layout/header"
+import { TrialBanner } from "@/components/layout/trial-banner"
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -15,11 +16,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   if (!userOrg) redirect("/onboarding")
 
+  const org = userOrg.organization
+
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
-      <Sidebar org={userOrg.organization} />
+      <Sidebar org={org} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header user={session.user} org={userOrg.organization} />
+        <TrialBanner
+          trialEndsAt={org.trialEndsAt}
+          hasSubscription={!!org.stripeSubId}
+        />
+        <Header user={session.user} org={org} />
         <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>

@@ -45,7 +45,9 @@ export async function POST(req: NextRequest) {
     cancel_url:  `${appUrl}/dashboard/billing?cancelled=1`,
     metadata:    { orgId: org.id, planId },
     subscription_data: {
-      metadata: { orgId: org.id, planId },
+      metadata:            { orgId: org.id, planId },
+      // Give a 14-day free trial only if the org is still within its trial window
+      trial_period_days:   org.trialEndsAt && new Date(org.trialEndsAt) > new Date() ? 14 : undefined,
     },
     allow_promotion_codes: true,
   })
