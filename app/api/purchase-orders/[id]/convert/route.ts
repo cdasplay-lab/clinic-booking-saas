@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { getNextDocNumber } from "@/lib/org"
+import { getNextDocNumber, getOrCreateDefaultWarehouse } from "@/lib/org"
 import { createJournalEntry, round2 } from "@/lib/accounting"
+import { getInventoryAccounts } from "@/lib/inventory"
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth()
@@ -60,6 +61,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         items: {
           create: po.items.map((item, idx) => ({
             description: item.description,
+            productId:   (item as any).productId || null,
             quantity:    item.quantity,
             unitPrice:   item.unitPrice,
             taxAmount:   0,
@@ -75,17 +77,32 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }),
   ])
 
+  // Split: inventoried products → Inventory asset, the rest → Expense
+  const poProductIds = po.items.map((i) => (i as any).productId).filter(Boolean) as string[]
+  const invProducts = poProductIds.length
+    ? await prisma.product.findMany({ where: { id: { in: poProductIds }, organizationId: orgId, isInventoried: true }, select: { id: true } })
+    : []
+  const invIds = new Set(invProducts.map((p) => p.id))
+  let inventoryAmount = 0
+  let expenseAmount = 0
+  for (const i of po.items) {
+    const net = round2(Number(i.quantity) * Number(i.unitPrice))
+    if ((i as any).productId && invIds.has((i as any).productId)) inventoryAmount = round2(inventoryAmount + net)
+    else expenseAmount = round2(expenseAmount + net)
+  }
+  const { inventory: inventoryAccount } = await getInventoryAccounts(orgId)
+
   if (apAccount && expenseAccount) {
-    const jLines = [
-      { accountId: expenseAccount.id, debit: subtotal, credit: 0,     description: `مشتريات ${number}` },
-      { accountId: apAccount.id,      debit: 0,        credit: total, description: `فاتورة مورد ${number}` },
+    const invTarget = inventoryAccount ?? expenseAccount
+    const jLines: Array<{ accountId: string; debit: number; credit: number; description: string }> = [
+      { accountId: apAccount.id, debit: 0, credit: total, description: `فاتورة مورد ${number}` },
     ]
+    if (inventoryAmount > 0) jLines.push({ accountId: invTarget.id,     debit: inventoryAmount, credit: 0, description: `مخزون مشتريات ${number}` })
+    if (expenseAmount  > 0) jLines.push({ accountId: expenseAccount.id, debit: expenseAmount,   credit: 0, description: `مشتريات ${number}` })
     if (taxAmount > 0 && taxAccount) {
       jLines.push({ accountId: taxAccount.id, debit: taxAmount, credit: 0, description: `ضريبة ${number}` })
-      // Reduce expense debit to keep balance
-      jLines[0].debit = subtotal
     } else if (taxAmount > 0) {
-      jLines[0].debit = round2(jLines[0].debit + taxAmount)
+      jLines.push({ accountId: expenseAccount.id, debit: taxAmount, credit: 0, description: `ضريبة ${number}` })
     }
     await createJournalEntry({
       organizationId: orgId,
@@ -96,6 +113,27 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       sourceId:       bill.id,
       lines:          jLines,
     })
+  }
+
+  // Perpetual stock: StockLedger IN for each inventoried line
+  if (invIds.size > 0) {
+    const warehouse = await getOrCreateDefaultWarehouse(orgId)
+    for (const i of po.items) {
+      const pid = (i as any).productId
+      if (!pid || !invIds.has(pid) || Number(i.quantity) <= 0) continue
+      await prisma.stockLedger.create({
+        data: {
+          productId: pid,
+          warehouseId: warehouse.id,
+          date: billDate,
+          reference: number,
+          quantity: Number(i.quantity),
+          unitCost: Number(i.unitPrice),
+          type: "IN",
+          billId: bill.id,
+        },
+      })
+    }
   }
 
   return NextResponse.json({ billId: bill.id, number })

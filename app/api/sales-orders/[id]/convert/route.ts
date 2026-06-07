@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { getNextDocNumber } from "@/lib/org"
+import { getNextDocNumber, getOrCreateDefaultWarehouse } from "@/lib/org"
 import { createJournalEntry, round2 } from "@/lib/accounting"
+import { getInventoryAccounts, recordCogsForSale } from "@/lib/inventory"
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth()
@@ -60,6 +61,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         items: {
           create: so.items.map((item, idx) => ({
             description: item.description,
+            productId:   (item as any).productId || null,
             quantity:    item.quantity,
             unitPrice:   item.unitPrice,
             taxAmount:   0,
@@ -94,6 +96,34 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       sourceId:       invoice.id,
       lines:          jLines,
     })
+
+    // Perpetual inventory: stock OUT + cost of goods sold
+    const warehouse = await getOrCreateDefaultWarehouse(orgId)
+    const cogsTotal = await recordCogsForSale({
+      organizationId: orgId,
+      warehouseId: warehouse.id,
+      date: invoiceDate,
+      reference: number,
+      items: so.items.map((i) => ({ productId: (i as any).productId, quantity: Number(i.quantity) })),
+      createStockOut: true,
+    })
+    if (cogsTotal > 0) {
+      const { inventory, cogs } = await getInventoryAccounts(orgId)
+      if (inventory && cogs) {
+        await createJournalEntry({
+          organizationId: orgId,
+          date: invoiceDate,
+          type: "SALES",
+          description: `تكلفة بضاعة مباعة — فاتورة ${number}`,
+          sourceType: "invoice-cogs",
+          sourceId: invoice.id,
+          lines: [
+            { accountId: cogs.id,      debit: cogsTotal, credit: 0 },
+            { accountId: inventory.id, debit: 0,         credit: cogsTotal },
+          ],
+        })
+      }
+    }
   }
 
   return NextResponse.json({ invoiceId: invoice.id, number })

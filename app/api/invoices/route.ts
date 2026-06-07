@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { getNextDocNumber } from "@/lib/org"
+import { getNextDocNumber, getOrCreateDefaultWarehouse } from "@/lib/org"
 import { createJournalEntry, round2 } from "@/lib/accounting"
+import { getInventoryAccounts, recordCogsForSale } from "@/lib/inventory"
 import { writeAuditLog } from "@/lib/audit"
 
 const InvoiceItemSchema = z.object({
@@ -71,6 +72,7 @@ export async function POST(req: NextRequest) {
     taxAmount  = round2(taxAmount  + lineTax)
     return {
       description: item.description,
+      productId:   item.productId || null,
       quantity:    qty,
       unitPrice:   price,
       taxRateId:   item.taxRateId || null,
@@ -144,6 +146,35 @@ export async function POST(req: NextRequest) {
       where: { id: invoice.id },
       data: { status: "SENT" },
     })
+
+    // Perpetual inventory: reduce stock + record cost of goods sold
+    const warehouse = await getOrCreateDefaultWarehouse(orgId)
+    const cogsTotal = await recordCogsForSale({
+      organizationId: orgId,
+      warehouseId: warehouse.id,
+      date: new Date(date),
+      reference: number,
+      items: lineItems.map((l: any) => ({ productId: l.productId, quantity: l.quantity })),
+      createStockOut: true,
+    })
+
+    if (cogsTotal > 0) {
+      const { inventory, cogs } = await getInventoryAccounts(orgId)
+      if (inventory && cogs) {
+        await createJournalEntry({
+          organizationId: orgId,
+          date: new Date(date),
+          type: "SALES",
+          description: `تكلفة بضاعة مباعة — فاتورة ${number}`,
+          sourceType: "invoice-cogs",
+          sourceId: invoice.id,
+          lines: [
+            { accountId: cogs.id,      debit: cogsTotal, credit: 0 },
+            { accountId: inventory.id, debit: 0,         credit: cogsTotal },
+          ],
+        })
+      }
+    }
   }
 
   await writeAuditLog({

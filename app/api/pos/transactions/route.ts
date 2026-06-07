@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getNextDocNumber } from "@/lib/org"
 import { createJournalEntry, round2 } from "@/lib/accounting"
+import { getInventoryAccounts, recordCogsForSale } from "@/lib/inventory"
 import { rateLimit } from "@/lib/rate-limit"
 
 export async function POST(req: NextRequest) {
@@ -129,6 +130,34 @@ export async function POST(req: NextRequest) {
         { accountId: revenueAccount.id, debit: 0,     credit: total, description: `مبيعات ${number}` },
       ],
     })
+  }
+
+  // Cost of goods sold — stock OUT already created above, so only compute & post COGS
+  const cogsTotal = await recordCogsForSale({
+    organizationId: orgId,
+    warehouseId:    posSession.warehouseId,
+    date:           new Date(),
+    reference:      number,
+    items:          lineItems.map((l: any) => ({ productId: l.productId, quantity: l.quantity })),
+    createStockOut: false,
+  })
+
+  if (cogsTotal > 0) {
+    const { inventory, cogs } = await getInventoryAccounts(orgId)
+    if (inventory && cogs) {
+      await createJournalEntry({
+        organizationId: orgId,
+        date:        new Date(),
+        type:        "SALES",
+        description: `تكلفة بضاعة مباعة — POS ${number}`,
+        sourceType:  "pos-cogs",
+        sourceId:    tx.id,
+        lines: [
+          { accountId: cogs.id,      debit: cogsTotal, credit: 0 },
+          { accountId: inventory.id, debit: 0,         credit: cogsTotal },
+        ],
+      })
+    }
   }
 
   return NextResponse.json({ id: tx.id, number, total, change }, { status: 201 })
