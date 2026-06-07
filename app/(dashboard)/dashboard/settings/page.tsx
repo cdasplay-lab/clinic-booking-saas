@@ -4,7 +4,7 @@ import { redirect } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { CreditCard, Users, Shield, CheckCircle2, Sparkles, Bell, Hash } from "lucide-react"
+import { CreditCard, Users, Shield, CheckCircle2, Sparkles, Bell, Hash, Calculator, Lock } from "lucide-react"
 import { getCountry } from "@/lib/countries"
 import OrgSettingsForm from "@/components/settings/org-settings-form"
 import DemoSeedButton from "@/components/settings/demo-seed-button"
@@ -158,6 +158,38 @@ export default async function SettingsPage() {
               <p className="text-sm text-gray-600">خصص بادئة وتنسيق الأرقام للفواتير وعروض الأسعار والمزيد</p>
               <Button variant="outline" size="sm" asChild>
                 <Link href="/dashboard/settings/numbering">تخصيص الأرقام</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Accounting — Opening Balances & Year-End Closing */}
+      {isOwnerOrAdmin && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Calculator className="h-5 w-5 text-blue-600" />
+              <CardTitle>المحاسبة والإقفال</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between py-2 border-b">
+              <div>
+                <p className="font-medium text-sm">الأرصدة الافتتاحية</p>
+                <p className="text-xs text-gray-500">أدخل أرصدتك عند الانتقال من نظام سابق</p>
+              </div>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/dashboard/settings/opening-balances">إدخال الأرصدة</Link>
+              </Button>
+            </div>
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <p className="font-medium text-sm flex items-center gap-1.5"><Lock className="h-3.5 w-3.5" /> السنوات المالية والإقفال</p>
+                <p className="text-xs text-gray-500">إقفال السنة وترحيل الأرباح للأرباح المبقاة</p>
+              </div>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/dashboard/settings/fiscal-years">إدارة السنوات</Link>
               </Button>
             </div>
           </CardContent>

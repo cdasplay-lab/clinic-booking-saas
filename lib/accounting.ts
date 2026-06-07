@@ -38,6 +38,17 @@ export async function createJournalEntry({
     throw new Error(`Journal entry unbalanced: Debit ${totalDebit} ≠ Credit ${totalCredit}`)
   }
 
+  // Block posting into a closed fiscal year (except the closing entry itself)
+  if (type !== "CLOSING") {
+    const closedYear = await prisma.fiscalYear.findFirst({
+      where: { organizationId, isClosed: true, startDate: { lte: date }, endDate: { gte: date } },
+      select: { name: true },
+    })
+    if (closedYear) {
+      throw new Error(`السنة المالية "${closedYear.name}" مقفلة — لا يمكن التسجيل في فترة مقفلة`)
+    }
+  }
+
   const { getNextDocNumber } = await import("./org")
   const number = await getNextDocNumber(organizationId, "JOURNAL")
 
