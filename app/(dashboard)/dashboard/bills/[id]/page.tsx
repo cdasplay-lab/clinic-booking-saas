@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import AttachmentPanel from "@/components/attachments/attachment-panel"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table"
-import { ArrowRight, FilePlus2 } from "lucide-react"
+import { ArrowRight, FilePlus2, Printer } from "lucide-react"
 import Link from "next/link"
 
 const statusConfig: Record<string, { label: string; color: string }> = {
@@ -51,13 +51,20 @@ export default async function BillDetailPage({ params }: { params: { id: string 
         <Button variant="ghost" size="sm" asChild>
           <Link href="/dashboard/bills"><ArrowRight className="h-4 w-4" /> فواتير الموردين</Link>
         </Button>
-        {["OPEN", "PARTIAL", "PAID"].includes(bill.status) && (
-          <Button variant="outline" size="sm" className="text-purple-600 border-purple-200 hover:bg-purple-50" asChild>
-            <Link href={`/dashboard/debit-notes/new?billId=${params.id}`}>
-              <FilePlus2 className="h-4 w-4 ml-1" />إشعار إضافة
-            </Link>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <a href={`/api/bills/${params.id}/pdf`} target="_blank" rel="noopener noreferrer">
+              <Printer className="h-4 w-4" /> تنزيل PDF
+            </a>
           </Button>
-        )}
+          {["OPEN", "PARTIAL", "PAID"].includes(bill.status) && (
+            <Button variant="outline" size="sm" className="text-purple-600 border-purple-200 hover:bg-purple-50" asChild>
+              <Link href={`/dashboard/debit-notes/new?billId=${params.id}`}>
+                <FilePlus2 className="h-4 w-4 ml-1" />إشعار إضافة
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
 
       <Card className="overflow-hidden">

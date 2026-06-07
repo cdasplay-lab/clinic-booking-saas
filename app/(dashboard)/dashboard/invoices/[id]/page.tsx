@@ -66,8 +66,8 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
             </Button>
           )}
           <Button variant="outline" size="sm" asChild>
-            <a href={`/print/invoices/${params.id}`} target="_blank" rel="noopener noreferrer">
-              <Printer className="h-4 w-4" /> طباعة / PDF
+            <a href={`/api/invoices/${params.id}/pdf`} target="_blank" rel="noopener noreferrer">
+              <Printer className="h-4 w-4" /> تنزيل PDF
             </a>
           </Button>
           <SendInvoiceButton
