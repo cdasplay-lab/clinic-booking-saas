@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import AttachmentPanel from "@/components/attachments/attachment-panel"
 import SendInvoiceButton from "@/components/invoice/send-invoice-button"
 import ZatcaQrDisplay from "@/components/invoice/zatca-qr-display"
+import TapPayButton from "@/components/invoice/tap-pay-button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table"
 import { ArrowRight, Printer } from "lucide-react"
 import Link from "next/link"
@@ -186,9 +187,18 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
                     تم دفع: {fmt(Number(invoice.amountPaid))} | متبقي: {fmt(Number(invoice.amountDue))}
                   </p>
                 </div>
-                <Button size="sm" asChild>
-                  <Link href={`/dashboard/payments/new?invoiceId=${invoice.id}`}>تسجيل دفعة</Link>
-                </Button>
+                <div className="flex gap-2 flex-wrap justify-end">
+                  {process.env.NEXT_PUBLIC_TAP_ENABLED === "true" && (
+                    <TapPayButton
+                      invoiceId={invoice.id}
+                      amountDue={Number(invoice.amountDue)}
+                      currency={country.currency}
+                    />
+                  )}
+                  <Button size="sm" asChild>
+                    <Link href={`/dashboard/payments/new?invoiceId=${invoice.id}`}>تسجيل دفعة</Link>
+                  </Button>
+                </div>
               </div>
             </div>
           )}
