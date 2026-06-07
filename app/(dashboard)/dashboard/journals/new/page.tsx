@@ -11,29 +11,32 @@ import { Loader2, Plus, Trash2, ArrowRight, AlertCircle } from "lucide-react"
 import Link from "next/link"
 
 interface JournalLine {
-  accountId: string
-  description: string
-  debit: string
-  credit: string
+  accountId:    string
+  description:  string
+  debit:        string
+  credit:       string
+  costCenterId: string
 }
 
 export default function NewJournalPage() {
   const router = useRouter()
-  const [accounts, setAccounts] = useState<any[]>([])
+  const [accounts, setAccounts]         = useState<any[]>([])
+  const [costCenters, setCostCenters]   = useState<any[]>([])
   const [form, setForm] = useState({
     date: new Date().toISOString().split("T")[0],
     description: "",
     reference: "",
   })
   const [lines, setLines] = useState<JournalLine[]>([
-    { accountId: "", description: "", debit: "0", credit: "0" },
-    { accountId: "", description: "", debit: "0", credit: "0" },
+    { accountId: "", description: "", debit: "0", credit: "0", costCenterId: "" },
+    { accountId: "", description: "", debit: "0", credit: "0", costCenterId: "" },
   ])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
   useEffect(() => {
     fetch("/api/accounts").then((r) => r.json()).then(setAccounts).catch(console.error)
+    fetch("/api/cost-centers").then((r) => r.json()).then((d) => setCostCenters(d.filter((c: any) => c.isActive))).catch(console.error)
   }, [])
 
   function updateLine(index: number, field: keyof JournalLine, value: string) {
@@ -43,7 +46,7 @@ export default function NewJournalPage() {
   }
 
   function addLine() {
-    setLines([...lines, { accountId: "", description: "", debit: "0", credit: "0" }])
+    setLines([...lines, { accountId: "", description: "", debit: "0", credit: "0", costCenterId: "" }])
   }
 
   function removeLine(index: number) {
@@ -119,9 +122,10 @@ export default function NewJournalPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>الحساب</TableHead>
+                  <TableHead>مركز التكلفة</TableHead>
                   <TableHead>الوصف</TableHead>
-                  <TableHead className="w-32">مدين (Dr)</TableHead>
-                  <TableHead className="w-32">دائن (Cr)</TableHead>
+                  <TableHead className="w-28">مدين (Dr)</TableHead>
+                  <TableHead className="w-28">دائن (Cr)</TableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -134,6 +138,17 @@ export default function NewJournalPage() {
                         <SelectContent>
                           {accounts.map((a) => (
                             <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <Select value={line.costCenterId} onValueChange={(v) => updateLine(i, "costCenterId", v)}>
+                        <SelectTrigger className="text-xs"><SelectValue placeholder="—" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">بدون مركز</SelectItem>
+                          {costCenters.map((c: any) => (
+                            <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>

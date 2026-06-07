@@ -8,7 +8,7 @@ import {
   CreditCard, Building2, BarChart3, Users, Settings, Bot,
   TrendingUp, Wallet, FileStack, Calculator, Briefcase,
   ChevronDown, ChevronRight, DollarSign, MessageCircle, Shield, FileSpreadsheet, RefreshCw,
-  FileX2, FilePlus2, Clock, ClipboardList
+  FileX2, FilePlus2, Clock, ClipboardList, Layers
 } from "lucide-react"
 import { useState } from "react"
 
@@ -25,6 +25,7 @@ const navItems = [
       { label: "دليل الحسابات", href: "/dashboard/accounts", icon: BookOpen },
       { label: "القيود اليومية", href: "/dashboard/journals", icon: FileStack },
       { label: "كشف الحساب", href: "/dashboard/ledger", icon: FileText },
+      { label: "مراكز التكلفة", href: "/dashboard/cost-centers", icon: Layers },
     ],
   },
   {
@@ -87,6 +88,7 @@ const navItems = [
       { label: "ميزان المراجعة", href: "/dashboard/reports/trial-balance", icon: FileText },
       { label: "الذمم المدينة المتقادمة", href: "/dashboard/reports/aged-receivables", icon: Clock },
       { label: "الذمم الدائنة المتقادمة", href: "/dashboard/reports/aged-payables", icon: Clock },
+      { label: "مراكز التكلفة", href: "/dashboard/reports/cost-centers", icon: Layers },
       { label: "دفتر اليومية", href: "/dashboard/reports/day-book", icon: BookOpen },
       { label: "تقرير ضريبة القيمة المضافة", href: "/dashboard/reports/vat", icon: DollarSign },
     ],
