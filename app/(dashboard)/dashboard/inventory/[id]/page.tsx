@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, ArrowRight } from "lucide-react"
+import { Loader2, ArrowRight, Barcode } from "lucide-react"
 import Link from "next/link"
+import SerialManager from "@/components/inventory/serial-manager"
 
 export default function EditProductPage() {
   const router = useRouter()
@@ -15,6 +16,7 @@ export default function EditProductPage() {
     code: "", name: "", description: "", unit: "PCS",
     category: "", salePrice: "0", purchasePrice: "0",
     reorderLevel: "0", barcode: "",
+    condition: "", brand: "", platform: "", tracksSerial: false,
   })
   const [loading, setLoading]   = useState(true)
   const [saving, setSaving]     = useState(false)
@@ -35,6 +37,10 @@ export default function EditProductPage() {
           purchasePrice: String(p.purchasePrice ?? 0),
           reorderLevel:  String(p.reorderLevel  ?? 0),
           barcode:       p.barcode       ?? "",
+          condition:     p.condition     ?? "",
+          brand:         p.brand         ?? "",
+          platform:      p.platform      ?? "",
+          tracksSerial:  !!p.tracksSerial,
         })
         setLoading(false)
       })
@@ -109,6 +115,40 @@ export default function EditProductPage() {
               </div>
             </div>
 
+            {/* Gaming / electronics fields */}
+            <div className="border-t pt-4">
+              <p className="text-sm font-medium text-gray-600 mb-3">خصائص الألعاب / الإلكترونيات</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>الحالة</Label>
+                  <select value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value })}
+                    className="w-full h-10 rounded-md border border-gray-200 px-3 text-sm">
+                    <option value="">— غير محدد —</option>
+                    <option value="NEW">جديد</option>
+                    <option value="USED">مستعمل</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>المنصة</Label>
+                  <Input value={form.platform} onChange={(e) => setForm({ ...form, platform: e.target.value })}
+                    placeholder="PS5 / PS4 / Xbox / Switch" />
+                </div>
+                <div className="space-y-2">
+                  <Label>الماركة</Label>
+                  <Input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })}
+                    placeholder="Sony / Microsoft / Nintendo" />
+                </div>
+                <div className="flex items-end pb-2">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" checked={form.tracksSerial}
+                      onChange={(e) => setForm({ ...form, tracksSerial: e.target.checked })}
+                      className="h-4 w-4 rounded border-gray-300" />
+                    تتبع بالأرقام التسلسلية (للأجهزة)
+                  </label>
+                </div>
+              </div>
+            </div>
+
             <div className="flex gap-3">
               <Button type="submit" disabled={saving} className="flex-1">
                 {saving && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
@@ -121,6 +161,20 @@ export default function EditProductPage() {
           </CardContent>
         </form>
       </Card>
+
+      {/* Serial numbers — only for serial-tracked devices */}
+      {form.tracksSerial && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Barcode className="h-4 w-4" /> الأرقام التسلسلية
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SerialManager productId={id} />
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

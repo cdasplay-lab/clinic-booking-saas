@@ -355,6 +355,34 @@ const AGENT_TOOLS: Anthropic.Tool[] = [
       required: [],
     },
   },
+  {
+    name: "get_due_cheques",
+    description: "يجلب الشيكات المستحقة قريباً (واردة وصادرة) خلال عدد أيام معيّن. مهم لمتابعة السيولة.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        days: { type: "number", description: "عدد الأيام القادمة (افتراضي ٧)" },
+        type: { type: "string", enum: ["INCOMING", "OUTGOING"], description: "نوع الشيك (اختياري)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "record_cheque",
+    description: "يسجل شيكاً جديداً (وارد من عميل أو صادر لمورد) مع القيد المحاسبي.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        type:         { type: "string", enum: ["INCOMING", "OUTGOING"], description: "وارد أو صادر" },
+        chequeNumber: { type: "string" },
+        partyName:    { type: "string", description: "اسم الساحب (وارد) أو المستفيد (صادر)" },
+        amount:       { type: "number" },
+        bankName:     { type: "string" },
+        dueDate:      { type: "string", description: "تاريخ الاستحقاق YYYY-MM-DD" },
+      },
+      required: ["type", "chequeNumber", "partyName", "amount", "dueDate"],
+    },
+  },
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -801,6 +829,76 @@ async function executeTool(toolName: string, input: any, orgId: string): Promise
         return {
           message: `مبيعات POS — ${dateStr}:\n• الإجمالي: **${formatCurrency(total)}** | ${txs.length} معاملة\n• نقد: ${formatCurrency(cash)} | بطاقة: ${formatCurrency(card)}\n• متوسط الفاتورة: ${formatCurrency(txs.length > 0 ? total / txs.length : 0)}\n\n🏆 أكثر المبيعات:\n${topProds.map((p, i) => `${i + 1}. ${p.name}: ${p.qty} وحدة — ${formatCurrency(p.revenue)}`).join("\n")}`,
         }
+      }
+
+      // ── DUE CHEQUES ─────────────────────────────────────────────────────────
+      case "get_due_cheques": {
+        const days = Number(input.days) || 7
+        const until = new Date(Date.now() + days * 86_400_000)
+        const cheques = await prisma.cheque.findMany({
+          where: {
+            organizationId: orgId,
+            status: { in: ["PENDING", "DEPOSITED"] },
+            dueDate: { lte: until },
+            ...(input.type ? { type: input.type } : {}),
+          },
+          orderBy: { dueDate: "asc" },
+          take: 20,
+        })
+        if (!cheques.length) return { message: `لا توجد شيكات مستحقة خلال ${days} يوم` }
+
+        const incoming = cheques.filter((c) => c.type === "INCOMING")
+        const outgoing = cheques.filter((c) => c.type === "OUTGOING")
+        const inTotal  = incoming.reduce((s, c) => s + Number(c.amount), 0)
+        const outTotal = outgoing.reduce((s, c) => s + Number(c.amount), 0)
+
+        return {
+          message: `الشيكات المستحقة خلال ${days} يوم:\n\n📥 واردة (${incoming.length}): **${formatCurrency(inTotal)}**\n${incoming.slice(0, 5).map((c) => `  • ${c.chequeNumber} — ${c.partyName}: ${formatCurrency(Number(c.amount))} (${c.dueDate.toLocaleDateString("ar-AE")})`).join("\n")}\n\n📤 صادرة (${outgoing.length}): **${formatCurrency(outTotal)}**\n${outgoing.slice(0, 5).map((c) => `  • ${c.chequeNumber} — ${c.partyName}: ${formatCurrency(Number(c.amount))} (${c.dueDate.toLocaleDateString("ar-AE")})`).join("\n")}\n\n💰 صافي التدفق المتوقع: **${formatCurrency(inTotal - outTotal)}**`,
+        }
+      }
+
+      // ── RECORD CHEQUE ───────────────────────────────────────────────────────
+      case "record_cheque": {
+        const isIncoming = input.type === "INCOMING"
+        const amount = round2(Number(input.amount))
+        const { getChequeAccount, getControlAccount } = await import("./cheques")
+
+        const chequeAccount  = await getChequeAccount(orgId, input.type)
+        const controlAccount = await getControlAccount(orgId, isIncoming ? "AR" : "AP")
+
+        let recordJournalId: string | null = null
+        if (chequeAccount && controlAccount) {
+          const journal = await createJournalEntry({
+            organizationId: orgId,
+            date: new Date(),
+            type: isIncoming ? "RECEIPT" : "PAYMENT",
+            description: isIncoming
+              ? `استلام شيك ${input.chequeNumber} من ${input.partyName}`
+              : `إصدار شيك ${input.chequeNumber} لـ ${input.partyName}`,
+            lines: isIncoming
+              ? [{ accountId: chequeAccount.id, debit: amount, credit: 0 }, { accountId: controlAccount.id, debit: 0, credit: amount }]
+              : [{ accountId: controlAccount.id, debit: amount, credit: 0 }, { accountId: chequeAccount.id, debit: 0, credit: amount }],
+          })
+          recordJournalId = journal.id
+        }
+
+        await prisma.cheque.create({
+          data: {
+            organizationId: orgId,
+            type: input.type,
+            chequeNumber: input.chequeNumber,
+            bankName: input.bankName || null,
+            partyName: input.partyName,
+            amount,
+            currency: "AED",
+            issueDate: new Date(),
+            dueDate: new Date(input.dueDate),
+            status: "PENDING",
+            recordJournalId,
+          },
+        })
+
+        return { success: true, message: `✅ تم تسجيل شيك ${isIncoming ? "وارد" : "صادر"} **${input.chequeNumber}** ${isIncoming ? "من" : "لـ"} "${input.partyName}" بمبلغ **${formatCurrency(amount)}** — يستحق ${new Date(input.dueDate).toLocaleDateString("ar-AE")}` }
       }
 
       default:

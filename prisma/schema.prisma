@@ -69,6 +69,8 @@ model Organization {
   notifications    Notification[]
   posSessions      PosSession[]
   posTransactions  PosTransaction[]
+  cheques          Cheque[]
+  productSerials   ProductSerial[]
 }
 
 enum Plan {
@@ -325,6 +327,7 @@ model Contact {
   purchaseOrders PurchaseOrder[]
   salesOrders    SalesOrder[]
   recurringInvoices RecurringInvoice[]
+  cheques        Cheque[]
 
   @@index([organizationId, type, isActive])
   @@index([organizationId, name])
@@ -353,6 +356,10 @@ model Product {
   reorderLevel   Decimal        @default(0) @db.Decimal(18, 4)
   barcode        String?
   isInventoried  Boolean        @default(true)
+  tracksSerial   Boolean        @default(false) // أجهزة برقم تسلسلي
+  condition      String?        // NEW / USED — لتجارة الألعاب المستعملة
+  brand          String?        // Sony / Microsoft / Nintendo ...
+  platform       String?        // PS5 / PS4 / Xbox / Switch ...
   isActive       Boolean        @default(true)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -364,6 +371,7 @@ model Product {
   poItems        PurchaseOrderItem[]
   soItems        SalesOrderItem[]
   posItems       PosTransactionItem[]
+  serials        ProductSerial[]
 
   @@unique([organizationId, code])
   @@index([organizationId, isActive, name])
@@ -734,6 +742,7 @@ model BankAccount {
   account        Account          @relation(fields: [accountId], references: [id])
   transactions   BankTransaction[]
   payments       Payment[]
+  cheques        Cheque[]
 }
 
 model BankTransaction {
@@ -1301,4 +1310,89 @@ enum PosStatus {
   COMPLETED
   REFUNDED
   VOIDED
+}
+
+// ============================================================
+// CHEQUE MANAGEMENT (إدارة الشيكات) — خليجي/إماراتي B2B
+// ============================================================
+
+model Cheque {
+  id              String       @id @default(cuid())
+  organizationId  String
+  type            ChequeType
+  chequeNumber    String
+  bankName        String?
+  partyName       String       // الساحب (وارد) أو المستفيد (صادر)
+  amount          Decimal      @db.Decimal(18, 4)
+  currency        String       @default("AED")
+  issueDate       DateTime
+  dueDate         DateTime     // تاريخ الاستحقاق — للشيكات الآجلة
+  status          ChequeStatus @default(PENDING)
+  contactId       String?
+  invoiceId       String?      // فاتورة مبيعات مرتبطة
+  billId          String?      // فاتورة مورد مرتبطة
+  bankAccountId   String?      // الحساب البنكي للإيداع/الصرف
+  depositedAt     DateTime?
+  clearedAt       DateTime?
+  bouncedAt       DateTime?
+  recordJournalId String?      // قيد التسجيل
+  clearJournalId  String?      // قيد التحصيل/الصرف
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contact         Contact?     @relation(fields: [contactId], references: [id])
+  bankAccount     BankAccount? @relation(fields: [bankAccountId], references: [id])
+
+  @@index([organizationId, status, dueDate])
+  @@index([organizationId, type, dueDate])
+  @@index([organizationId, contactId])
+}
+
+enum ChequeType {
+  INCOMING // وارد — مستلم من عميل
+  OUTGOING // صادر — مُعطى لمورد
+}
+
+enum ChequeStatus {
+  PENDING   // مسجّل، لم يُحصّل/يُصرف بعد
+  DEPOSITED // أُودع بالبنك برسم التحصيل (للوارد)
+  CLEARED   // تم التحصيل/الصرف بنجاح
+  BOUNCED   // ارتد / رفض
+  CANCELLED // مُلغى
+}
+
+// ============================================================
+// PRODUCT SERIAL NUMBERS (الأرقام التسلسلية) — أجهزة PS5/Xbox
+// ============================================================
+
+model ProductSerial {
+  id             String       @id @default(cuid())
+  organizationId String
+  productId      String
+  serialNumber   String
+  status         SerialStatus @default(IN_STOCK)
+  condition      String       @default("NEW") // NEW / USED
+  warrantyMonths Int?
+  warrantyEnd    DateTime?
+  soldInvoiceId  String?
+  soldDate       DateTime?
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, serialNumber])
+  @@index([organizationId, status])
+  @@index([productId, status])
+}
+
+enum SerialStatus {
+  IN_STOCK   // في المخزون
+  SOLD       // مُباع
+  RETURNED   // مُرتجع
+  DEFECTIVE  // تالف / صيانة
 }

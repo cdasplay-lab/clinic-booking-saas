@@ -45,6 +45,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       purchasePrice: data.purchasePrice !== undefined ? parseFloat(data.purchasePrice) : product.purchasePrice,
       reorderLevel:  data.reorderLevel  !== undefined ? parseFloat(data.reorderLevel)  : product.reorderLevel,
       isActive:      data.isActive      !== undefined ? data.isActive                  : product.isActive,
+      condition:     data.condition     !== undefined ? (data.condition || null)       : product.condition,
+      brand:         data.brand         !== undefined ? (data.brand || null)           : product.brand,
+      platform:      data.platform      !== undefined ? (data.platform || null)        : product.platform,
+      tracksSerial:  data.tracksSerial  !== undefined ? !!data.tracksSerial            : product.tracksSerial,
     },
   })
 

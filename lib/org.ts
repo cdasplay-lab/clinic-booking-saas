@@ -63,6 +63,8 @@ function getPrefix(docType: string) {
     PO: "PO",
     SO: "SO",
     PAYROLL: "PAY",
+    CHEQUE_IN: "CHQ-IN",
+    CHEQUE_OUT: "CHQ-OUT",
   }
   return map[docType] || docType.slice(0, 3)
 }
