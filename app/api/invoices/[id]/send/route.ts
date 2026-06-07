@@ -49,7 +49,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     contactEmail: toEmail,
     total: fmt(Number(invoice.total)),
     dueDate: formatDateShort(invoice.dueDate),
-    invoiceUrl: `${appUrl}/dashboard/invoices/${invoice.id}`,
+    invoiceUrl:  `${appUrl}/dashboard/invoices/${invoice.id}`,
+    paymentUrl:  `${appUrl}/pay/${invoice.id}`,
     notes: invoice.notes,
   })
 

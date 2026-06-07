@@ -21,7 +21,8 @@ interface InvoiceEmailData {
   contactEmail: string
   total: string
   dueDate: string
-  invoiceUrl: string
+  invoiceUrl:  string
+  paymentUrl?: string
   notes?: string | null
 }
 
@@ -80,7 +81,10 @@ export function buildInvoiceEmail(data: InvoiceEmailData): { subject: string; ht
       </div>
 
       <div style="text-align:center;">
-        <a href="${data.invoiceUrl}" class="btn">عرض الفاتورة</a>
+        ${data.paymentUrl
+          ? `<a href="${data.paymentUrl}" class="btn">ادفع الآن</a>
+             <br/><a href="${data.invoiceUrl}" style="color:#64748b;font-size:13px;display:block;margin-top:8px;">عرض الفاتورة</a>`
+          : `<a href="${data.invoiceUrl}" class="btn">عرض الفاتورة</a>`}
       </div>
 
       ${data.notes ? `<div class="notes"><p><strong>ملاحظات:</strong> ${data.notes}</p></div>` : ""}
@@ -105,7 +109,7 @@ export function buildInvoiceEmail(data: InvoiceEmailData): { subject: string; ht
 المبلغ المستحق: ${data.total}
 تاريخ الاستحقاق: ${data.dueDate}
 
-عرض الفاتورة: ${data.invoiceUrl}
+${data.paymentUrl ? `ادفع الآن: ${data.paymentUrl}\n` : ""}عرض الفاتورة: ${data.invoiceUrl}
 
 ${data.notes ? `ملاحظات: ${data.notes}` : ""}
 

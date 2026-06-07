@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { stripe, planFromPriceId } from "@/lib/stripe"
 import { prisma } from "@/lib/prisma"
+import { recordInvoicePayment } from "@/lib/payments/record-invoice-payment"
 import Stripe from "stripe"
 
 export async function POST(req: NextRequest) {
@@ -20,6 +21,25 @@ export async function POST(req: NextRequest) {
 
       case "checkout.session.completed": {
         const sess = event.data.object as Stripe.Checkout.Session
+
+        // ── Invoice payment ──────────────────────────────────────────────────
+        if (sess.metadata?.type === "INVOICE_PAYMENT") {
+          const { invoiceId, orgId, contactId } = sess.metadata
+          if (invoiceId && orgId && contactId) {
+            const amountPaid = (sess.amount_total ?? 0) / 100
+            await recordInvoicePayment({
+              orgId,
+              invoiceId,
+              contactId,
+              amount:           amountPaid,
+              method:           "ONLINE",
+              stripeSessionId:  sess.id,
+            })
+          }
+          break
+        }
+
+        // ── Subscription checkout ────────────────────────────────────────────
         if (sess.mode !== "subscription") break
         const orgId  = sess.metadata?.orgId
         const planId = sess.metadata?.planId
@@ -29,10 +49,10 @@ export async function POST(req: NextRequest) {
         await prisma.organization.update({
           where: { id: orgId },
           data: {
-            plan:            planId as any,
+            plan:             planId as any,
             stripeCustomerId: sess.customer as string,
-            stripeSubId:     sub.id,
-            planExpiresAt:   new Date(sub.current_period_end * 1000),
+            stripeSubId:      sub.id,
+            planExpiresAt:    new Date(sub.current_period_end * 1000),
           },
         })
         break

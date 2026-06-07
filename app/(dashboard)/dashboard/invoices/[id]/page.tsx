@@ -10,6 +10,7 @@ import AttachmentPanel from "@/components/attachments/attachment-panel"
 import SendInvoiceButton from "@/components/invoice/send-invoice-button"
 import ZatcaQrDisplay from "@/components/invoice/zatca-qr-display"
 import TapPayButton from "@/components/invoice/tap-pay-button"
+import { CopyPaymentLink } from "@/components/invoice/copy-payment-link"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table"
 import { ArrowRight, Printer, FileX2 } from "lucide-react"
 import Link from "next/link"
@@ -64,6 +65,9 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
                 <FileX2 className="h-4 w-4 ml-1" />إشعار خصم
               </Link>
             </Button>
+          )}
+          {["SENT", "PARTIAL", "OVERDUE"].includes(invoice.status) && (
+            <CopyPaymentLink invoiceId={params.id} />
           )}
           <Button variant="outline" size="sm" asChild>
             <a href={`/api/invoices/${params.id}/pdf`} target="_blank" rel="noopener noreferrer">
