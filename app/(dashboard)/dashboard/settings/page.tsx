@@ -234,9 +234,11 @@ export default async function SettingsPage() {
           <div className="flex items-center justify-between py-2 border-b">
             <div>
               <p className="font-medium text-sm">كلمة المرور</p>
-              <p className="text-xs text-gray-500">آخر تغيير: غير محدد</p>
+              <p className="text-xs text-gray-500">غيّر كلمة مرورك بأمان</p>
             </div>
-            <Button variant="outline" size="sm">تغيير كلمة المرور</Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/dashboard/settings/profile">تغيير كلمة المرور</Link>
+            </Button>
           </div>
           <TwoFactorSettings enabled={!!currentUser?.twoFactorEnabled} />
         </CardContent>
