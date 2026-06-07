@@ -325,6 +325,9 @@ model Contact {
   purchaseOrders PurchaseOrder[]
   salesOrders    SalesOrder[]
   recurringInvoices RecurringInvoice[]
+
+  @@index([organizationId, type, isActive])
+  @@index([organizationId, name])
 }
 
 enum ContactType {
@@ -363,6 +366,9 @@ model Product {
   posItems       PosTransactionItem[]
 
   @@unique([organizationId, code])
+  @@index([organizationId, isActive, name])
+  @@index([organizationId, barcode])
+  @@index([organizationId, category])
 }
 
 model Warehouse {
@@ -394,6 +400,9 @@ model StockLedger {
 
   product     Product   @relation(fields: [productId], references: [id])
   warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+
+  @@index([productId, date(sort: Desc)])
+  @@index([warehouseId, date(sort: Desc)])
 }
 
 enum StockType {
@@ -448,6 +457,9 @@ model Journal {
   lines          JournalLine[]
 
   @@unique([organizationId, number])
+  @@index([organizationId, date(sort: Desc)])
+  @@index([organizationId, type, date(sort: Desc)])
+  @@index([sourceType, sourceId])
 }
 
 model JournalLine {
@@ -465,6 +477,9 @@ model JournalLine {
   journal      Journal     @relation(fields: [journalId], references: [id], onDelete: Cascade)
   account      Account     @relation(fields: [accountId], references: [id])
   costCenter   CostCenter? @relation(fields: [costCenterId], references: [id])
+
+  @@index([accountId])
+  @@index([journalId])
 }
 
 enum JournalType {
@@ -537,6 +552,9 @@ model Invoice {
   payments            Payment[]
 
   @@unique([organizationId, number])
+  @@index([organizationId, status, date(sort: Desc)])
+  @@index([organizationId, contactId, date(sort: Desc)])
+  @@index([organizationId, dueDate, status])
 }
 
 model InvoiceItem {
@@ -615,6 +633,9 @@ model Bill {
   payments         Payment[]
 
   @@unique([organizationId, number])
+  @@index([organizationId, status, date(sort: Desc)])
+  @@index([organizationId, contactId, date(sort: Desc)])
+  @@index([organizationId, dueDate, status])
 }
 
 model BillItem {
@@ -672,6 +693,11 @@ model Payment {
   invoice        Invoice?       @relation(fields: [invoiceId], references: [id])
   bill           Bill?          @relation(fields: [billId], references: [id])
   bankAccount    BankAccount?   @relation(fields: [bankAccountId], references: [id])
+
+  @@index([organizationId, date(sort: Desc)])
+  @@index([organizationId, type, date(sort: Desc)])
+  @@index([invoiceId])
+  @@index([billId])
 }
 
 enum PaymentType {
@@ -1215,6 +1241,9 @@ model PosSession {
   warehouse      Warehouse        @relation(fields: [warehouseId], references: [id])
   cashier        User             @relation(fields: [cashierId], references: [id])
   transactions   PosTransaction[]
+
+  @@index([organizationId, status, openedAt(sort: Desc)])
+  @@index([organizationId, openedAt(sort: Desc)])
 }
 
 model PosTransaction {
@@ -1237,6 +1266,9 @@ model PosTransaction {
   organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   session        PosSession           @relation(fields: [sessionId], references: [id])
   items          PosTransactionItem[]
+
+  @@index([organizationId, date(sort: Desc)])
+  @@index([sessionId, date(sort: Desc)])
 }
 
 model PosTransactionItem {

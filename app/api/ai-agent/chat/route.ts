@@ -2,10 +2,20 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { runAIAgent } from "@/lib/ai-agent"
+import { rateLimit, getClientId } from "@/lib/rate-limit"
 
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  // 30 AI requests per user per hour (costly API calls)
+  const rl = rateLimit(`ai:${session.user.id}`, { limit: 30, windowSec: 3600 })
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "لقد تجاوزت حد طلبات المساعد الذكي. حاول مجدداً بعد ساعة." },
+      { status: 429 }
+    )
+  }
 
   const { message, conversationId, organizationId } = await req.json()
   if (!message || !organizationId) return NextResponse.json({ error: "Message and organizationId required" }, { status: 400 })

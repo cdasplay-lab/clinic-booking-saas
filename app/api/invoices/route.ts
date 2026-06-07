@@ -1,9 +1,30 @@
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getNextDocNumber } from "@/lib/org"
 import { createJournalEntry, round2 } from "@/lib/accounting"
 import { writeAuditLog } from "@/lib/audit"
+
+const InvoiceItemSchema = z.object({
+  description: z.string().min(1).max(500),
+  quantity:    z.coerce.number().positive(),
+  unitPrice:   z.coerce.number().min(0),
+  discount:    z.coerce.number().min(0).max(100).default(0),
+  taxRateId:   z.string().optional().nullable(),
+  taxAmount:   z.coerce.number().min(0).default(0),
+  productId:   z.string().optional().nullable(),
+  accountId:   z.string().optional().nullable(),
+})
+
+const CreateInvoiceSchema = z.object({
+  contactId: z.string().min(1),
+  date:      z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
+  dueDate:   z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
+  notes:     z.string().max(1000).optional().nullable(),
+  terms:     z.string().max(500).optional().nullable(),
+  items:     z.array(InvoiceItemSchema).min(1).max(200),
+})
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -33,12 +54,11 @@ export async function POST(req: NextRequest) {
   if (!userOrg) return NextResponse.json({ error: "No organization" }, { status: 400 })
 
   const orgId = userOrg.organizationId
-  const body = await req.json()
-  const { contactId, date, dueDate, notes, items } = body
-
-  if (!contactId || !date || !dueDate || !items?.length) {
-    return NextResponse.json({ error: "البيانات الأساسية مطلوبة" }, { status: 400 })
+  const parsed = CreateInvoiceSchema.safeParse(await req.json())
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.errors[0]?.message ?? "بيانات غير صحيحة" }, { status: 400 })
   }
+  const { contactId, date, dueDate, notes, items } = parsed.data
 
   let subtotal = 0
   let taxAmount = 0

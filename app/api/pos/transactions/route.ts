@@ -3,10 +3,15 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getNextDocNumber } from "@/lib/org"
 import { createJournalEntry, round2 } from "@/lib/accounting"
+import { rateLimit } from "@/lib/rate-limit"
 
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  // 200 transactions per cashier per hour
+  const rl = rateLimit(`pos-tx:${session.user.id}`, { limit: 200, windowSec: 3600 })
+  if (!rl.success) return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 })
 
   const userOrg = await prisma.userOrganization.findFirst({
     where: { userId: session.user.id, isDefault: true },

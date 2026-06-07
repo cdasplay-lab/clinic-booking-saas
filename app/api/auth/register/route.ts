@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
+import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { generateSlug } from "@/lib/utils"
 import { getCountry } from "@/lib/countries"
 import { rateLimit, getClientId } from "@/lib/rate-limit"
+
+const RegisterSchema = z.object({
+  name:    z.string().min(2).max(100).trim(),
+  email:   z.string().email().toLowerCase().trim(),
+  password: z.string().min(8).max(128),
+  orgName: z.string().min(2).max(100).trim(),
+  country: z.string().length(2).toUpperCase().default("SA"),
+})
 
 export async function POST(req: NextRequest) {
   // 5 register attempts per IP per hour
@@ -16,15 +25,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { name, email, password, orgName, country = "SA" } = await req.json()
-
-    if (!name || !email || !password || !orgName) {
-      return NextResponse.json({ error: "جميع الحقول مطلوبة" }, { status: 400 })
+    const parsed = RegisterSchema.safeParse(await req.json())
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.errors[0]?.message ?? "بيانات غير صحيحة" }, { status: 400 })
     }
-
-    if (password.length < 8) {
-      return NextResponse.json({ error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" }, { status: 400 })
-    }
+    const { name, email, password, orgName, country } = parsed.data
 
     const existing = await prisma.user.findUnique({ where: { email } })
     if (existing) {
