@@ -8,7 +8,7 @@ import {
   CreditCard, Building2, BarChart3, Users, Settings, Bot,
   TrendingUp, Wallet, FileStack, Calculator, Briefcase,
   ChevronDown, ChevronRight, DollarSign, MessageCircle, Shield, FileSpreadsheet, RefreshCw,
-  FileX2, FilePlus2, Clock, ClipboardList, Layers
+  FileX2, FilePlus2, Clock, ClipboardList, Layers, Download
 } from "lucide-react"
 import { useState } from "react"
 
@@ -107,6 +107,11 @@ const navItems = [
     label: "استيراد البيانات",
     href: "/dashboard/import",
     icon: FileSpreadsheet,
+  },
+  {
+    label: "تصدير البيانات",
+    href: "/dashboard/export",
+    icon: Download,
   },
   {
     label: "سجل التدقيق",

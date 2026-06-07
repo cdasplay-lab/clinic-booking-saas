@@ -30,6 +30,8 @@ model Organization {
   stripeSubId      String?
   reminderEnabled  Boolean  @default(false)
   reminderDays     String   @default("1,7,14")
+  backupEnabled    Boolean  @default(false)
+  backupEmail      String?
   isActive         Boolean  @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

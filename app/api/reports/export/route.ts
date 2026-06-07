@@ -5,6 +5,7 @@ import { getTrialBalance, getProfitAndLoss } from "@/lib/accounting"
 import {
   trialBalanceXlsx, profitLossXlsx,
   invoicesXlsx, billsXlsx, journalsXlsx,
+  contactsXlsx, paymentsXlsx, productsXlsx, accountsXlsx,
   xlsxResponse,
 } from "@/lib/excel"
 
@@ -67,6 +68,43 @@ export async function GET(req: NextRequest) {
       })
       const buf = journalsXlsx(journals, org.name, org.country)
       return xlsxResponse(Buffer.from(buf), `اليومية_${org.name}`)
+    }
+
+    case "contacts": {
+      const contacts = await prisma.contact.findMany({
+        where: { organizationId: orgId },
+        orderBy: { name: "asc" },
+      })
+      const buf = contactsXlsx(contacts, org.name)
+      return xlsxResponse(Buffer.from(buf), `جهات_الاتصال_${org.name}`)
+    }
+
+    case "payments": {
+      const payments = await prisma.payment.findMany({
+        where: { organizationId: orgId },
+        include: { contact: { select: { name: true } } },
+        orderBy: { date: "desc" },
+      })
+      const buf = paymentsXlsx(payments, org.name, org.country)
+      return xlsxResponse(Buffer.from(buf), `المدفوعات_${org.name}`)
+    }
+
+    case "products": {
+      const products = await prisma.product.findMany({
+        where: { organizationId: orgId },
+        orderBy: { name: "asc" },
+      })
+      const buf = productsXlsx(products, org.name)
+      return xlsxResponse(Buffer.from(buf), `المنتجات_${org.name}`)
+    }
+
+    case "accounts": {
+      const accounts = await prisma.account.findMany({
+        where: { organizationId: orgId },
+        orderBy: { code: "asc" },
+      })
+      const buf = accountsXlsx(accounts, org.name)
+      return xlsxResponse(Buffer.from(buf), `دليل_الحسابات_${org.name}`)
     }
 
     default:
