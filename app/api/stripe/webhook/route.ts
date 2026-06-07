@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { stripe, planFromPriceId } from "@/lib/stripe"
 import { prisma } from "@/lib/prisma"
 import { recordInvoicePayment } from "@/lib/payments/record-invoice-payment"
+import { captureError } from "@/lib/logger"
 import Stripe from "stripe"
 
 export async function POST(req: NextRequest) {
@@ -107,7 +108,7 @@ export async function POST(req: NextRequest) {
       }
     }
   } catch (err: any) {
-    console.error("Stripe webhook handler error:", err.message)
+    captureError(err, { stripeEventType: event.type, stripeEventId: event.id })
     return NextResponse.json({ error: "Handler failed" }, { status: 500 })
   }
 

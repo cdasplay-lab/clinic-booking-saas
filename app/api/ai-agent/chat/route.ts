@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { runAIAgent } from "@/lib/ai-agent"
 import { rateLimit, getClientId } from "@/lib/rate-limit"
+import { captureError } from "@/lib/logger"
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ response, conversationId: convId })
   } catch (error: any) {
-    console.error("AI Agent error:", error)
+    captureError(error, { organizationId, userId: session.user.id })
     const errorMsg = "عذراً، لم أستطع الاتصال بالمساعد الذكي. تأكد من إعداد ANTHROPIC_API_KEY."
     await prisma.aIMessage.create({ data: { conversationId: convId, role: "ASSISTANT", content: errorMsg } })
     return NextResponse.json({ response: errorMsg, conversationId: convId })

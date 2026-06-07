@@ -15,6 +15,8 @@ const withPWA = require("@ducanh2912/next-pwa").default({
   },
 })
 
+const { withSentryConfig } = require("@sentry/nextjs")
+
 const securityHeaders = [
   { key: "X-DNS-Prefetch-Control",    value: "on" },
   { key: "X-Frame-Options",           value: "SAMEORIGIN" },
@@ -29,12 +31,13 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com https://*.sentry.io",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
       "frame-src https://js.stripe.com https://hooks.stripe.com",
-      "connect-src 'self' https://api.stripe.com",
+      "connect-src 'self' https://api.stripe.com https://*.sentry.io",
+      "worker-src 'self' blob:",
     ].join("; "),
   },
 ]
@@ -56,4 +59,15 @@ const nextConfig = {
   },
 }
 
-module.exports = withPWA(nextConfig)
+const sentryOptions = {
+  org:     process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  // Only upload source maps in CI to avoid slowing local builds
+  silent:  !process.env.CI,
+  widenClientFileUpload: true,
+  hideSourceMaps: true,
+  disableLogger: true,
+  automaticVercelMonitors: true,
+}
+
+module.exports = withSentryConfig(withPWA(nextConfig), sentryOptions)

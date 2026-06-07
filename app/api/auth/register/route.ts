@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { generateSlug } from "@/lib/utils"
 import { getCountry } from "@/lib/countries"
 import { rateLimit, getClientId } from "@/lib/rate-limit"
+import { captureError } from "@/lib/logger"
 
 const RegisterSchema = z.object({
   name:    z.string().min(2).max(100).trim(),
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, userId: user.id })
   } catch (error) {
-    console.error("Register error:", error)
+    captureError(error, { route: "register" })
     return NextResponse.json({ error: "حدث خطأ في إنشاء الحساب" }, { status: 500 })
   }
 }
