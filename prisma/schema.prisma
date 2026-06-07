@@ -60,6 +60,7 @@ model Organization {
   pendingTransactions PendingTransaction[]
   attachments      Attachment[]
   auditLogs        AuditLog[]
+  recurringInvoices RecurringInvoice[]
 }
 
 enum Plan {
@@ -249,6 +250,7 @@ model TaxRate {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   invoiceItems   InvoiceItem[]
   billItems      BillItem[]
+  recurringItems RecurringItem[]
 }
 
 enum TaxType {
@@ -309,6 +311,7 @@ model Contact {
   payments       Payment[]
   purchaseOrders PurchaseOrder[]
   salesOrders    SalesOrder[]
+  recurringInvoices RecurringInvoice[]
 }
 
 enum ContactType {
@@ -1068,4 +1071,56 @@ model AuditLog {
 
   @@index([organizationId, createdAt(sort: Desc)])
   @@index([organizationId, entityType, entityId])
+}
+
+// ============================================================
+// RECURRING INVOICES
+// ============================================================
+
+model RecurringInvoice {
+  id             String              @id @default(cuid())
+  organizationId String
+  contactId      String
+  title          String
+  frequency      RecurringFrequency
+  dueDays        Int                 @default(30)
+  nextDate       DateTime
+  endDate        DateTime?
+  status         RecurringStatus     @default(ACTIVE)
+  totalGenerated Int                 @default(0)
+  notes          String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contact        Contact             @relation(fields: [contactId], references: [id])
+  items          RecurringItem[]
+
+  @@index([organizationId, status, nextDate])
+}
+
+model RecurringItem {
+  id                 String           @id @default(cuid())
+  recurringInvoiceId String
+  description        String
+  quantity           Decimal          @default(1) @db.Decimal(18, 4)
+  unitPrice          Decimal          @db.Decimal(18, 4)
+  taxRateId          String?
+  sortOrder          Int              @default(0)
+
+  recurringInvoice   RecurringInvoice @relation(fields: [recurringInvoiceId], references: [id], onDelete: Cascade)
+  taxRate            TaxRate?         @relation(fields: [taxRateId], references: [id])
+}
+
+enum RecurringFrequency {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum RecurringStatus {
+  ACTIVE
+  PAUSED
+  ENDED
 }
