@@ -8,6 +8,7 @@ import { CreditCard, Users, Shield, CheckCircle2, Sparkles } from "lucide-react"
 import { getCountry } from "@/lib/countries"
 import OrgSettingsForm from "@/components/settings/org-settings-form"
 import DemoSeedButton from "@/components/settings/demo-seed-button"
+import TwoFactorSettings from "@/components/settings/two-factor-settings"
 import Link from "next/link"
 
 export default async function SettingsPage() {
@@ -23,8 +24,9 @@ export default async function SettingsPage() {
   const org = userOrg.organization
   const isOwnerOrAdmin = ["OWNER", "ADMIN"].includes(userOrg.role)
 
-  const [usersCount] = await Promise.all([
+  const [usersCount, currentUser] = await Promise.all([
     prisma.userOrganization.count({ where: { organizationId: org.id } }),
+    prisma.user.findUnique({ where: { id: session.user.id }, select: { twoFactorEnabled: true } }),
   ])
 
   const country = getCountry(org.country)
@@ -195,13 +197,7 @@ export default async function SettingsPage() {
             </div>
             <Button variant="outline" size="sm">تغيير كلمة المرور</Button>
           </div>
-          <div className="flex items-center justify-between py-2">
-            <div>
-              <p className="font-medium text-sm">المصادقة الثنائية (2FA)</p>
-              <p className="text-xs text-gray-500">طبقة أمان إضافية — قريباً</p>
-            </div>
-            <Badge variant="secondary" className="text-xs">قريباً</Badge>
-          </div>
+          <TwoFactorSettings enabled={!!currentUser?.twoFactorEnabled} />
         </CardContent>
       </Card>
     </div>

@@ -34,17 +34,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           image: user.image,
+          requiresTwoFactor: user.twoFactorEnabled,
         }
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.id = user.id
+      if (user) {
+        token.id = user.id
+        if ((user as any).requiresTwoFactor) token.requiresTwoFactor = true
+      }
       return token
     },
     async session({ session, token }) {
-      if (token) session.user.id = token.id as string
+      if (token) {
+        session.user.id = token.id as string
+        ;(session as any).requiresTwoFactor = !!token.requiresTwoFactor
+      }
       return session
     },
   },
