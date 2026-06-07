@@ -31,7 +31,7 @@ export default async function VendorsPage({
 
   const where = {
     organizationId: userOrg.organizationId,
-    type: { in: ["VENDOR", "BOTH"] as const },
+    type: { in: ["VENDOR", "BOTH"] as ("VENDOR" | "BOTH")[] },
     isActive: true,
     ...(q ? {
       OR: [

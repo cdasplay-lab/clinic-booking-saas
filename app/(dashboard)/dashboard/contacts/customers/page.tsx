@@ -31,7 +31,7 @@ export default async function CustomersPage({
 
   const where = {
     organizationId: userOrg.organizationId,
-    type: { in: ["CUSTOMER", "BOTH"] as const },
+    type: { in: ["CUSTOMER", "BOTH"] as ("CUSTOMER" | "BOTH")[] },
     isActive: true,
     ...(q ? {
       OR: [

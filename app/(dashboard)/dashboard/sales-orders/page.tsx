@@ -3,20 +3,19 @@ import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus } from "lucide-react"
+import { Plus, ShoppingCart } from "lucide-react"
 import { formatCurrency, formatDateShort } from "@/lib/utils"
-import { getCountry } from "@/lib/countries"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ShoppingCart } from "lucide-react"
+import { ConvertOrderButton } from "@/components/orders/convert-order-button"
 
 const statusConfig: Record<string, { label: string; color: string }> = {
-  DRAFT:     { label: "مسودة",     color: "bg-gray-100 text-gray-700" },
-  CONFIRMED: { label: "مؤكد",      color: "bg-blue-100 text-blue-700" },
-  PARTIAL:   { label: "تسليم جزئي", color: "bg-yellow-100 text-yellow-700" },
-  DELIVERED: { label: "مسلّم",      color: "bg-green-100 text-green-700" },
-  CANCELLED: { label: "ملغى",       color: "bg-red-100 text-red-700" },
+  DRAFT:     { label: "مسودة",       color: "bg-gray-100 text-gray-700" },
+  CONFIRMED: { label: "مؤكد",        color: "bg-blue-100 text-blue-700" },
+  PARTIAL:   { label: "تسليم جزئي",  color: "bg-yellow-100 text-yellow-700" },
+  DELIVERED: { label: "مسلّم",        color: "bg-green-100 text-green-700" },
+  INVOICED:  { label: "تم الفوترة",  color: "bg-purple-100 text-purple-700" },
+  CANCELLED: { label: "ملغى",         color: "bg-red-100 text-red-700" },
 }
 
 export default async function SalesOrdersPage() {
@@ -25,7 +24,6 @@ export default async function SalesOrdersPage() {
 
   const userOrg = await prisma.userOrganization.findFirst({
     where: { userId: session.user.id, isDefault: true },
-    include: { organization: true },
   })
   if (!userOrg) redirect("/onboarding")
 
@@ -35,14 +33,11 @@ export default async function SalesOrdersPage() {
     orderBy: { date: "desc" },
   })
 
-  const country = getCountry(userOrg.organization.country)
-  const fmt = (n: number) => formatCurrency(n, country.currency, country.locale)
-
   const totals = {
     draft:     orders.filter((o) => o.status === "DRAFT").length,
     confirmed: orders.filter((o) => o.status === "CONFIRMED").length,
-    delivered: orders.filter((o) => o.status === "DELIVERED").length,
-    value:     orders.filter((o) => !["CANCELLED"].includes(o.status)).reduce((s, o) => s + Number(o.total), 0),
+    invoiced:  orders.filter((o) => o.status === "INVOICED").length,
+    value:     orders.filter((o) => o.status !== "CANCELLED").reduce((s, o) => s + Number(o.total), 0),
   }
 
   if (orders.length === 0) {
@@ -71,24 +66,22 @@ export default async function SalesOrdersPage() {
         </Button>
       </div>
 
-      {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "مسودات",   value: totals.draft,     color: "text-gray-600",  isCount: true },
-          { label: "مؤكدة",    value: totals.confirmed, color: "text-blue-600",  isCount: true },
-          { label: "مسلّمة",   value: totals.delivered, color: "text-green-600", isCount: true },
-          { label: "إجمالي القيمة", value: totals.value, color: "text-blue-700", isCount: false },
+          { label: "مسودات",         value: totals.draft,     color: "text-gray-600",   isCount: true },
+          { label: "مؤكدة",           value: totals.confirmed, color: "text-blue-600",   isCount: true },
+          { label: "تم الفوترة",      value: totals.invoiced,  color: "text-purple-600", isCount: true },
+          { label: "إجمالي القيمة",   value: totals.value,     color: "text-blue-700",   isCount: false },
         ].map((s) => (
           <div key={s.label} className="bg-white rounded-lg border p-4">
             <p className="text-sm text-gray-500">{s.label}</p>
             <p className={`text-xl font-bold ${s.color}`}>
-              {s.isCount ? s.value : fmt(s.value as number)}
+              {s.isCount ? s.value : formatCurrency(s.value as number)}
             </p>
           </div>
         ))}
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded-lg border overflow-x-auto">
         <Table>
           <TableHeader>
@@ -99,13 +92,15 @@ export default async function SalesOrdersPage() {
               <TableHead>موعد التسليم</TableHead>
               <TableHead className="text-left">الإجمالي</TableHead>
               <TableHead>الحالة</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {orders.map((order) => {
               const cfg = statusConfig[order.status] || statusConfig.DRAFT
+              const canConvert = !["INVOICED", "CANCELLED"].includes(order.status)
               return (
-                <TableRow key={order.id} className="hover:bg-gray-50 cursor-pointer">
+                <TableRow key={order.id} className="hover:bg-gray-50">
                   <TableCell className="font-mono text-sm font-medium text-blue-600">
                     {order.number}
                   </TableCell>
@@ -115,12 +110,15 @@ export default async function SalesOrdersPage() {
                     {order.expectedDate ? formatDateShort(order.expectedDate) : "—"}
                   </TableCell>
                   <TableCell className="text-left font-medium">
-                    {fmt(Number(order.total))}
+                    {formatCurrency(Number(order.total))}
                   </TableCell>
                   <TableCell>
                     <span className={`text-xs font-medium px-2 py-1 rounded-full ${cfg.color}`}>
                       {cfg.label}
                     </span>
+                  </TableCell>
+                  <TableCell>
+                    <ConvertOrderButton orderId={order.id} orderType="so" disabled={!canConvert} />
                   </TableCell>
                 </TableRow>
               )

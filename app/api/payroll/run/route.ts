@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { createJournalEntry } from "@/lib/accounting"
+import { createJournalEntry, round2 } from "@/lib/accounting"
 
 export async function GET() {
   const session = await auth()
@@ -72,6 +72,35 @@ export async function POST(req: NextRequest) {
     },
     include: { payslips: { include: { employee: { select: { name: true } } } } },
   })
+
+  // Journal entry: DR Salaries Expense, CR Cash/Bank
+  const payDateObj = new Date(payDate)
+  const [salaryAccount, bankAccount] = await Promise.all([
+    prisma.account.findFirst({
+      where: { organizationId: userOrg.organizationId, accountType: "EXPENSE" },
+      orderBy: { code: "asc" },
+    }),
+    prisma.account.findFirst({
+      where: { organizationId: userOrg.organizationId, accountType: { in: ["BANK", "CASH"] } },
+      orderBy: { code: "asc" },
+    }),
+  ])
+
+  if (salaryAccount && bankAccount) {
+    const total = round2(totalGross)
+    await createJournalEntry({
+      organizationId: userOrg.organizationId,
+      date:        payDateObj,
+      type:        "PAYROLL",
+      description: `رواتب ${period}`,
+      sourceType:  "payroll",
+      sourceId:    run.id,
+      lines: [
+        { accountId: salaryAccount.id, debit: total, credit: 0, description: `رواتب ${period}` },
+        { accountId: bankAccount.id,   debit: 0, credit: total, description: `صرف رواتب ${period}` },
+      ],
+    })
+  }
 
   return NextResponse.json(run, { status: 201 })
 }
