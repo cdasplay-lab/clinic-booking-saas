@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { createJournalEntry, round2 } from "@/lib/accounting"
+import { notifyPaymentReceived, notifyPaymentSent } from "@/lib/notify"
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -138,6 +139,18 @@ export async function POST(req: NextRequest) {
         })
       }
     }
+  }
+
+  // Fire-and-forget notifications (don't block response)
+  const contactRecord = contactId
+    ? await prisma.contact.findUnique({ where: { id: contactId }, select: { name: true } }).catch(() => null)
+    : null
+  const contactName = contactRecord?.name || ""
+  const amountStr   = `${payAmount.toLocaleString("ar-SA", { minimumFractionDigits: 2 })}`
+  if (type === "INCOMING") {
+    notifyPaymentReceived(orgId, amountStr, contactName, payment.id).catch(() => {})
+  } else if (type === "OUTGOING") {
+    notifyPaymentSent(orgId, amountStr, contactName).catch(() => {})
   }
 
   return NextResponse.json(payment, { status: 201 })

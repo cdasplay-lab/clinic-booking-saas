@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { createTransport, buildReminderEmail } from "@/lib/email"
+import { notifyInvoiceOverdue } from "@/lib/notify"
 
 // Vercel Cron or manual trigger — protected by CRON_SECRET
 export async function POST(req: NextRequest) {
@@ -98,6 +99,9 @@ export async function POST(req: NextRequest) {
             reminderCount: { increment: 1 },
           },
         })
+
+        // Create in-app notification for the org
+        notifyInvoiceOverdue(org.id, inv.number, inv.contact.name, inv.id).catch(() => {})
 
         sent++
       } catch (err: any) {

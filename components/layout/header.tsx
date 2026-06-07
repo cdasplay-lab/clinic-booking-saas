@@ -9,8 +9,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Bell, LogOut, Settings, User } from "lucide-react"
+import { LogOut, Settings, User } from "lucide-react"
 import Link from "next/link"
+import NotificationBell from "@/components/layout/notification-bell"
 
 export default function Header({ user, org }: { user: any; org: any }) {
   return (
@@ -21,9 +22,7 @@ export default function Header({ user, org }: { user: any; org: any }) {
       </div>
 
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon">
-          <Bell className="h-4 w-4" />
-        </Button>
+        <NotificationBell />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

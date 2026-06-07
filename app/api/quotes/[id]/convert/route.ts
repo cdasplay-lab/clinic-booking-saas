@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getNextDocNumber } from "@/lib/org"
 import { createJournalEntry, round2 } from "@/lib/accounting"
+import { notifyQuoteConverted } from "@/lib/notify"
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth()
@@ -113,6 +114,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     where: { id: quote.id },
     data:  { convertedInvoiceId: invoice.id },
   })
+
+  // Notify org about conversion
+  notifyQuoteConverted(orgId, quote.number, number, invoice.id).catch(() => {})
 
   return NextResponse.json({ invoiceId: invoice.id, number })
 }
