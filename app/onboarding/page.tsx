@@ -11,12 +11,13 @@ import {
 } from "lucide-react"
 
 const INDUSTRIES = [
-  { id: "general",      label: "تجارة عامة",     icon: ShoppingBag,    desc: "استيراد، تصدير، بيع وشراء بضائع" },
-  { id: "services",     label: "خدمات",          icon: Briefcase,      desc: "استشارات، برمجة، تسويق، تعليم" },
-  { id: "construction", label: "مقاولات وإنشاء", icon: Wrench,         desc: "تشييد، صيانة، مشاريع البناء" },
-  { id: "clinic",       label: "عيادة وصحة",     icon: Stethoscope,    desc: "عيادات، مستشفيات، صيدليات" },
-  { id: "restaurant",   label: "مطاعم وضيافة",   icon: UtensilsCrossed, desc: "مطاعم، كافيهات، فنادق" },
-  { id: "retail",       label: "تجزئة وجملة",    icon: Building2,      desc: "محلات، سوبرماركت، متاجر إلكترونية" },
+  { id: "general",      label: "تجارة عامة",        icon: ShoppingBag,     desc: "استيراد، تصدير، بيع وشراء بضائع" },
+  { id: "gaming",       label: "ألعاب وإلكترونيات", icon: Building2,       desc: "بلي ستيشن، أجهزة، بطاقات PSN، إكسسوارات" },
+  { id: "services",     label: "خدمات",             icon: Briefcase,       desc: "استشارات، برمجة، تسويق، تعليم" },
+  { id: "construction", label: "مقاولات وإنشاء",    icon: Wrench,          desc: "تشييد، صيانة، مشاريع البناء" },
+  { id: "clinic",       label: "عيادة وصحة",        icon: Stethoscope,     desc: "عيادات، مستشفيات، صيدليات" },
+  { id: "restaurant",   label: "مطاعم وضيافة",      icon: UtensilsCrossed, desc: "مطاعم، كافيهات، فنادق" },
+  { id: "retail",       label: "تجزئة وجملة",       icon: ShoppingBag,     desc: "محلات، سوبرماركت، متاجر إلكترونية" },
 ]
 
 const STEPS = ["مرحباً بك", "بيانات الشركة", "نوع النشاط", "انتهيت!"]

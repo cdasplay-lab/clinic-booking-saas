@@ -72,20 +72,20 @@ export async function seedDemoData(organizationId: string): Promise<{ created: n
 
   // ── 3. Contacts ──────────────────────────────────────────────
   const customersData = [
-    { name: "شركة البيان للتجارة",            phone: `${country.phonePrefix}501234567`, type: "CUSTOMER" },
-    { name: "مؤسسة النهرين للمواد الغذائية",  phone: `${country.phonePrefix}502345678`, type: "CUSTOMER" },
-    { name: "شركة الرافدين للخدمات",          phone: `${country.phonePrefix}503456789`, type: "CUSTOMER" },
-    { name: "مجموعة الأمل التجارية",           phone: `${country.phonePrefix}504567890`, type: "CUSTOMER" },
+    { name: "معرض النخيل للألعاب",      phone: `${country.phonePrefix}501234567`, type: "CUSTOMER", priceLevel: "WHOLESALE" },
+    { name: "محلات الرشيد للإلكترونيات", phone: `${country.phonePrefix}502345678`, type: "CUSTOMER", priceLevel: "WHOLESALE" },
+    { name: "علي حسن الموسوي",           phone: `${country.phonePrefix}503456789`, type: "CUSTOMER", priceLevel: "RETAIL" },
+    { name: "كلوب ستيشن بغداد",          phone: `${country.phonePrefix}504567890`, type: "CUSTOMER", priceLevel: "VIP" },
   ]
   const suppliersData = [
-    { name: "شركة الخليج للاستيراد",          phone: `${country.phonePrefix}505678901`, type: "VENDOR" },
-    { name: "مستودع البغدادي للتوزيع",         phone: `${country.phonePrefix}506789012`, type: "VENDOR" },
-    { name: "شركة الأمانة للتوريدات",          phone: `${country.phonePrefix}507890123`, type: "VENDOR" },
+    { name: "شركة الخليج للاستيراد والتوزيع",  phone: `${country.phonePrefix}505678901`, type: "VENDOR" },
+    { name: "مستودع العراق للإلكترونيات",       phone: `${country.phonePrefix}506789012`, type: "VENDOR" },
+    { name: "شركة سوني العالمية للتوزيع",       phone: `${country.phonePrefix}507890123`, type: "VENDOR" },
   ]
 
   const customers = await Promise.all(
     customersData.map((c) =>
-      prisma.contact.create({ data: { organizationId, name: c.name, phone: c.phone, type: "CUSTOMER", isActive: true } })
+      prisma.contact.create({ data: { organizationId, name: c.name, phone: c.phone, type: "CUSTOMER", priceLevel: c.priceLevel, isActive: true } })
     )
   )
   const suppliers = await Promise.all(
@@ -94,24 +94,55 @@ export async function seedDemoData(organizationId: string): Promise<{ created: n
     )
   )
 
-  // ── 4. Products ──────────────────────────────────────────────
-  await prisma.product.createMany({
-    data: [
-      { organizationId, name: "مواد غذائية متنوعة",   code: "PRD-001", salePrice: 500 * M,  purchasePrice: 350 * M,  isInventoried: true,  isActive: true },
-      { organizationId, name: "إلكترونيات ومعدات",    code: "PRD-002", salePrice: 2000 * M, purchasePrice: 1500 * M, isInventoried: true,  isActive: true },
-      { organizationId, name: "خدمة استشارية",         code: "SRV-001", salePrice: 1000 * M, purchasePrice: 0,        isInventoried: false, isActive: true },
-      { organizationId, name: "خدمة توصيل وشحن",      code: "SRV-002", salePrice: 200 * M,  purchasePrice: 100 * M,  isInventoried: false, isActive: true },
-      { organizationId, name: "مواد بناء ومستلزمات",  code: "PRD-003", salePrice: 800 * M,  purchasePrice: 600 * M,  isInventoried: true,  isActive: true },
-    ],
-  })
+  // ── 4. Products (PlayStation & gaming) ──────────────────────
+  const [ps5, ps4pro, dualsense, psn50, psn100, game1, game2, headset] = await Promise.all([
+    prisma.product.create({ data: { organizationId, name: "PlayStation 5 (PS5) Disc Edition", code: "PS5-001",   unit: "جهاز", salePrice: 900 * M,  wholesalePrice: 800 * M, vipPrice: 750 * M,  purchasePrice: 650 * M,  isInventoried: true,  tracksSerial: true,  isActive: true, reorderLevel: 2 } }),
+    prisma.product.create({ data: { organizationId, name: "PlayStation 4 Pro 1TB",              code: "PS4P-001", unit: "جهاز", salePrice: 450 * M,  wholesalePrice: 400 * M, vipPrice: 380 * M,  purchasePrice: 300 * M,  isInventoried: true,  tracksSerial: true,  isActive: true, reorderLevel: 3 } }),
+    prisma.product.create({ data: { organizationId, name: "DualSense Controller",                code: "ACC-001",  unit: "قطعة", salePrice: 100 * M,  wholesalePrice: 90 * M,  vipPrice: 85 * M,   purchasePrice: 65 * M,   isInventoried: true,  tracksSerial: false, isActive: true, reorderLevel: 5 } }),
+    prisma.product.create({ data: { organizationId, name: "PSN Gift Card $50",                   code: "PSN-050",  unit: "بطاقة", salePrice: 85 * M,   wholesalePrice: 80 * M,  vipPrice: 78 * M,   purchasePrice: 70 * M,   isInventoried: true,  tracksSerial: false, isActive: true, reorderLevel: 10 } }),
+    prisma.product.create({ data: { organizationId, name: "PSN Gift Card $100",                  code: "PSN-100",  unit: "بطاقة", salePrice: 165 * M,  wholesalePrice: 155 * M, vipPrice: 150 * M,  purchasePrice: 138 * M,  isInventoried: true,  tracksSerial: false, isActive: true, reorderLevel: 10 } }),
+    prisma.product.create({ data: { organizationId, name: "FIFA 25 PS5",                          code: "GAME-001", unit: "لعبة",  salePrice: 65 * M,   wholesalePrice: 60 * M,  vipPrice: 55 * M,   purchasePrice: 45 * M,   isInventoried: true,  tracksSerial: false, isActive: true, reorderLevel: 5 } }),
+    prisma.product.create({ data: { organizationId, name: "GTA VI PS5",                           code: "GAME-002", unit: "لعبة",  salePrice: 75 * M,   wholesalePrice: 70 * M,  vipPrice: 65 * M,   purchasePrice: 55 * M,   isInventoried: true,  tracksSerial: false, isActive: true, reorderLevel: 5 } }),
+    prisma.product.create({ data: { organizationId, name: "PULSE 3D Headset",                     code: "ACC-002",  unit: "قطعة", salePrice: 130 * M,  wholesalePrice: 120 * M, vipPrice: 115 * M,  purchasePrice: 90 * M,   isInventoried: true,  tracksSerial: false, isActive: true, reorderLevel: 3 } }),
+  ])
+
+  // Seed serial numbers for PS5 units
+  const warehouse = await prisma.warehouse.findFirst({ where: { organizationId } })
+  if (warehouse) {
+    const ps5Serials = ["CF1234567890", "CF2345678901", "CF3456789012", "CF4567890123", "CF5678901234"]
+    for (const sn of ps5Serials) {
+      await prisma.productSerial.create({
+        data: { organizationId, productId: ps5.id, serialNumber: sn, condition: "NEW", warrantyMonths: 12, status: "IN_STOCK" },
+      })
+      await prisma.stockLedger.create({
+        data: { productId: ps5.id, warehouseId: warehouse.id, date: d(-30), reference: "DEMO-OPEN", quantity: 1, unitCost: 650 * M, type: "IN" },
+      })
+    }
+    // PS4 Pro serials
+    const ps4Serials = ["CUH7215A001", "CUH7215A002", "CUH7215A003"]
+    for (const sn of ps4Serials) {
+      await prisma.productSerial.create({
+        data: { organizationId, productId: ps4pro.id, serialNumber: sn, condition: "NEW", warrantyMonths: 12, status: "IN_STOCK" },
+      })
+      await prisma.stockLedger.create({
+        data: { productId: ps4pro.id, warehouseId: warehouse.id, date: d(-30), reference: "DEMO-OPEN", quantity: 1, unitCost: 300 * M, type: "IN" },
+      })
+    }
+    // Accessories stock
+    for (const [prod, qty, cost] of [[dualsense, 15, 65], [psn50, 30, 70], [psn100, 20, 138], [game1, 12, 45], [game2, 8, 55], [headset, 6, 90]] as [typeof dualsense, number, number][]) {
+      await prisma.stockLedger.create({
+        data: { productId: prod.id, warehouseId: warehouse.id, date: d(-30), reference: "DEMO-OPEN", quantity: qty, unitCost: cost * M, type: "IN" },
+      })
+    }
+  }
 
   // ── 5. Bank Account ──────────────────────────────────────────
   await prisma.bankAccount.create({
     data: {
       organizationId,
       accountId: bankId,
-      name: "الحساب الجاري الرئيسي",
-      accountNumber: "1234567890",
+      name: country.code === "IQ" ? "مصرف الرشيد — الحساب الجاري" : country.code === "AE" ? "بنك الإمارات دبي الوطني" : "البنك الأهلي السعودي",
+      accountNumber: country.code === "IQ" ? "IQ29RASH050020012345678" : "1234567890",
       bankName: country.code === "IQ" ? "مصرف الرشيد" : country.code === "AE" ? "بنك الإمارات دبي الوطني" : "البنك الأهلي السعودي",
       currency,
       currentBalance: 50000 * M,
@@ -201,39 +232,33 @@ export async function seedDemoData(organizationId: string): Promise<{ created: n
   }
 
   // ── 9. Invoices ──────────────────────────────────────────────
-  const invoicesData = [
-    { contactIdx: 0, status: "PAID",    subtotal: 5000 * M,  daysAgo: -60, dueDays: 30 },
-    { contactIdx: 1, status: "PAID",    subtotal: 12000 * M, daysAgo: -45, dueDays: 30 },
-    { contactIdx: 2, status: "SENT",    subtotal: 8500 * M,  daysAgo: -20, dueDays: 30 },
-    { contactIdx: 0, status: "SENT",    subtotal: 3200 * M,  daysAgo: -10, dueDays: 30 },
-    { contactIdx: 3, status: "OVERDUE", subtotal: 15000 * M, daysAgo: -70, dueDays: 30 },
-    { contactIdx: 1, status: "PARTIAL", subtotal: 9000 * M,  daysAgo: -35, dueDays: 30 },
-    { contactIdx: 2, status: "DRAFT",   subtotal: 4500 * M,  daysAgo: -2,  dueDays: 30 },
+  const invoicesDef = [
+    { contactIdx: 0, status: "PAID",    daysAgo: -60, dueDays: 30, productId: ps5.id,      qty: 2,  unit: 900 * M, desc: "PlayStation 5 Disc Edition" },
+    { contactIdx: 1, status: "PAID",    daysAgo: -45, dueDays: 30, productId: ps5.id,      qty: 1,  unit: 900 * M, desc: "PlayStation 5 Disc Edition" },
+    { contactIdx: 2, status: "SENT",    daysAgo: -20, dueDays: 30, productId: dualsense.id, qty: 10, unit: 100 * M, desc: "DualSense Controller" },
+    { contactIdx: 0, status: "SENT",    daysAgo: -10, dueDays: 30, productId: psn50.id,     qty: 15, unit: 85 * M,  desc: "PSN Gift Card $50" },
+    { contactIdx: 3, status: "OVERDUE", daysAgo: -70, dueDays: 30, productId: ps4pro.id,    qty: 3,  unit: 450 * M, desc: "PlayStation 4 Pro 1TB" },
+    { contactIdx: 1, status: "PARTIAL", daysAgo: -35, dueDays: 30, productId: game1.id,     qty: 20, unit: 65 * M,  desc: "FIFA 25 PS5" },
+    { contactIdx: 2, status: "DRAFT",   daysAgo: -2,  dueDays: 30, productId: ps5.id,       qty: 1,  unit: 950 * M, desc: "PlayStation 5 Bundle" },
   ]
 
-  for (let i = 0; i < invoicesData.length; i++) {
-    const inv = invoicesData[i]
-    const vatAmt = taxRate ? inv.subtotal * (Number(taxRate.rate) / 100) : 0
-    const total = inv.subtotal + vatAmt
-    const amountPaid = inv.status === "PAID" ? total : inv.status === "PARTIAL" ? total * 0.5 : 0
-    const amountDue = total - amountPaid
+  for (let i = 0; i < invoicesDef.length; i++) {
+    const inv   = invoicesDef[i]
+    const sub   = Math.round(inv.qty * inv.unit * 100) / 100
+    const vatAmt = taxRate ? Math.round(sub * (Number(taxRate.rate) / 100) * 100) / 100 : 0
+    const total = sub + vatAmt
+    const amountPaid = inv.status === "PAID" ? total : inv.status === "PARTIAL" ? Math.round(total * 0.5 * 100) / 100 : 0
+    const amountDue = Math.round((total - amountPaid) * 100) / 100
 
     const items = [
       {
-        description: "بضاعة متنوعة",
-        quantity: 10,
-        unitPrice: inv.subtotal * 0.6 / 10,
-        taxRateId: taxRate?.id,
-        taxAmount: vatAmt * 0.6,
-        total: inv.subtotal * 0.6 + vatAmt * 0.6,
-      },
-      {
-        description: "خدمات إضافية",
-        quantity: 1,
-        unitPrice: inv.subtotal * 0.4,
-        taxRateId: taxRate?.id,
-        taxAmount: vatAmt * 0.4,
-        total: inv.subtotal * 0.4 + vatAmt * 0.4,
+        description: inv.desc,
+        productId:   inv.productId,
+        quantity:    inv.qty,
+        unitPrice:   inv.unit,
+        taxRateId:   taxRate?.id,
+        taxAmount:   vatAmt,
+        total:       sub,
       },
     ]
 
@@ -246,7 +271,7 @@ export async function seedDemoData(organizationId: string): Promise<{ created: n
         dueDate: d(inv.daysAgo + inv.dueDays),
         currency,
         status: inv.status as any,
-        subtotal: inv.subtotal,
+        subtotal: sub,
         taxAmount: vatAmt,
         total,
         amountPaid,
@@ -267,19 +292,20 @@ export async function seedDemoData(organizationId: string): Promise<{ created: n
 
   // ── 10. Bills ────────────────────────────────────────────────
   const billsData = [
-    { vendorIdx: 0, status: "PAID",    subtotal: 8000 * M,  daysAgo: -50 },
-    { vendorIdx: 1, status: "OPEN",    subtotal: 4500 * M,  daysAgo: -15 },
-    { vendorIdx: 2, status: "OVERDUE", subtotal: 12000 * M, daysAgo: -65 },
-    { vendorIdx: 0, status: "PARTIAL", subtotal: 6000 * M,  daysAgo: -25 },
-    { vendorIdx: 1, status: "OPEN",    subtotal: 3200 * M,  daysAgo: -5  },
+    { vendorIdx: 0, status: "PAID",    daysAgo: -50, productId: ps5.id,      qty: 5,  unitCost: 650 * M, desc: "PlayStation 5 Disc Edition" },
+    { vendorIdx: 1, status: "OPEN",    daysAgo: -15, productId: dualsense.id, qty: 20, unitCost: 65 * M,  desc: "DualSense Controller" },
+    { vendorIdx: 2, status: "OVERDUE", daysAgo: -65, productId: ps4pro.id,    qty: 10, unitCost: 300 * M, desc: "PlayStation 4 Pro 1TB" },
+    { vendorIdx: 0, status: "PARTIAL", daysAgo: -25, productId: psn50.id,     qty: 50, unitCost: 70 * M,  desc: "PSN Gift Card $50" },
+    { vendorIdx: 1, status: "OPEN",    daysAgo: -5,  productId: game1.id,     qty: 30, unitCost: 45 * M,  desc: "FIFA 25 PS5" },
   ]
 
   for (let i = 0; i < billsData.length; i++) {
     const bill = billsData[i]
-    const vatAmt = taxRate ? bill.subtotal * (Number(taxRate.rate) / 100) : 0
-    const total = bill.subtotal + vatAmt
-    const amountPaid = bill.status === "PAID" ? total : bill.status === "PARTIAL" ? total * 0.4 : 0
-    const amountDue = total - amountPaid
+    const sub  = Math.round(bill.qty * bill.unitCost * 100) / 100
+    const vatAmt = taxRate ? Math.round(sub * (Number(taxRate.rate) / 100) * 100) / 100 : 0
+    const total = sub + vatAmt
+    const amountPaid = bill.status === "PAID" ? total : bill.status === "PARTIAL" ? Math.round(total * 0.4 * 100) / 100 : 0
+    const amountDue = Math.round((total - amountPaid) * 100) / 100
 
     await prisma.bill.create({
       data: {
@@ -290,36 +316,38 @@ export async function seedDemoData(organizationId: string): Promise<{ created: n
         dueDate: d(bill.daysAgo + 30),
         currency,
         status: bill.status as any,
-        subtotal: bill.subtotal,
+        subtotal: sub,
         taxAmount: vatAmt,
         total,
         amountPaid,
         amountDue,
         items: {
           create: [{
-            description: "بضاعة مشتراة",
-            quantity: 5,
-            unitPrice: bill.subtotal / 5,
-            taxRateId: taxRate?.id,
-            taxAmount: vatAmt,
-            total,
+            description: bill.desc,
+            productId:   bill.productId,
+            quantity:    bill.qty,
+            unitPrice:   bill.unitCost,
+            taxRateId:   taxRate?.id,
+            taxAmount:   vatAmt,
+            total:       sub,
           }],
         },
       },
     })
   }
 
-  // ── 11. Employees ─────────────────────────────────────────────
+  // ── 11. Employees (with commission rates for sales reps) ──────
   await prisma.employee.createMany({
     data: [
-      { organizationId, name: "أحمد محمد الكاظمي",  employeeId: "EMP-001", position: "مدير مالي",     department: "المالية",    basicSalary: 3000 * M, isActive: true, joinDate: d(-365) },
-      { organizationId, name: "سارة علي الجبوري",   employeeId: "EMP-002", position: "محاسبة",        department: "المالية",    basicSalary: 2000 * M, isActive: true, joinDate: d(-280) },
-      { organizationId, name: "محمود حسن العبيدي",  employeeId: "EMP-003", position: "مندوب مبيعات",  department: "المبيعات",   basicSalary: 1800 * M, isActive: true, joinDate: d(-200) },
+      { organizationId, name: "أحمد محمد الكاظمي",  employeeId: "EMP-001", position: "مدير متجر",     department: "الإدارة",    basicSalary: 1500 * M, isActive: true, joinDate: d(-365), commissionRate: null },
+      { organizationId, name: "سارة علي الجبوري",   employeeId: "EMP-002", position: "محاسبة",        department: "المالية",    basicSalary: 900 * M,  isActive: true, joinDate: d(-280), commissionRate: null },
+      { organizationId, name: "محمود حسن العبيدي",  employeeId: "EMP-003", position: "مندوب مبيعات",  department: "المبيعات",   basicSalary: 600 * M,  isActive: true, joinDate: d(-200), commissionRate: 2.5 },
+      { organizationId, name: "حسين علاء الدين",    employeeId: "EMP-004", position: "مندوب مبيعات",  department: "المبيعات",   basicSalary: 600 * M,  isActive: true, joinDate: d(-150), commissionRate: 2.5 },
     ],
   })
 
   const totalCreated =
-    customers.length + suppliers.length + invoicesData.length + billsData.length + expenses.length + 3
+    customers.length + suppliers.length + invoicesDef.length + billsData.length + expenses.length + 4
 
   return { created: totalCreated }
 }

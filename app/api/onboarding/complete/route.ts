@@ -3,6 +3,15 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
 const INDUSTRY_EXTRAS: Record<string, { code: string; name: string; type: string; nature: string; groupCode: string }[]> = {
+  gaming: [
+    { code: "4037", name: "مبيعات أجهزة وألعاب",         type: "REVENUE", nature: "CREDIT", groupCode: "الإيرادات" },
+    { code: "4038", name: "مبيعات بطاقات PSN وديجيتال",  type: "REVENUE", nature: "CREDIT", groupCode: "الإيرادات" },
+    { code: "4039", name: "خدمات الضمان والصيانة",        type: "REVENUE", nature: "CREDIT", groupCode: "الإيرادات" },
+    { code: "1129", name: "مخزون الأجهزة والإكسسوارات",  type: "STOCK",   nature: "DEBIT",  groupCode: "الأصول المتداولة" },
+    { code: "5016", name: "تكلفة بضاعة مباعة - أجهزة",   type: "EXPENSE", nature: "DEBIT",  groupCode: "مصروفات تشغيلية" },
+    { code: "5185", name: "مصروفات الضمان والإصلاح",      type: "EXPENSE", nature: "DEBIT",  groupCode: "مصروفات إدارية" },
+    { code: "5186", name: "عمولات المندوبين",              type: "EXPENSE", nature: "DEBIT",  groupCode: "مصروفات إدارية" },
+  ],
   services: [
     { code: "4025", name: "إيرادات استشارات", type: "REVENUE", nature: "CREDIT", groupCode: "الإيرادات" },
     { code: "4026", name: "إيرادات تدريب", type: "REVENUE", nature: "CREDIT", groupCode: "الإيرادات" },
