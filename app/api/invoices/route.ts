@@ -27,6 +27,7 @@ const CreateInvoiceSchema = z.object({
   terms:     z.string().max(500).optional().nullable(),
   items:     z.array(InvoiceItemSchema).min(1).max(200),
   overrideCreditLimit: z.boolean().optional(),
+  salespersonId: z.string().optional().nullable(),
 })
 
 export async function GET(req: NextRequest) {
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.errors[0]?.message ?? "بيانات غير صحيحة" }, { status: 400 })
   }
-  const { contactId, date, dueDate, notes, items, overrideCreditLimit } = parsed.data
+  const { contactId, date, dueDate, notes, items, overrideCreditLimit, salespersonId } = parsed.data
 
   let subtotal = 0
   let taxAmount = 0
@@ -122,6 +123,7 @@ export async function POST(req: NextRequest) {
       status: "DRAFT",
       notes,
       arAccountId: arAccount?.id,
+      salespersonId: salespersonId || null,
       items: { create: lineItems },
     },
   })
@@ -190,6 +192,28 @@ export async function POST(req: NextRequest) {
           ],
         })
       }
+    }
+  }
+
+  // Auto-record commission if salesperson has a commission rate
+  if (salespersonId) {
+    const emp = await prisma.employee.findFirst({
+      where: { id: salespersonId, organizationId: orgId },
+      select: { commissionRate: true },
+    })
+    if (emp?.commissionRate && Number(emp.commissionRate) > 0) {
+      const rate = Number(emp.commissionRate)
+      const commAmount = Math.round(total * (rate / 100) * 100) / 100
+      await prisma.salesCommission.create({
+        data: {
+          organizationId: orgId,
+          invoiceId: invoice.id,
+          employeeId: salespersonId,
+          invoiceTotal: total,
+          rate,
+          amount: commAmount,
+        },
+      })
     }
   }
 

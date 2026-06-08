@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   })
   if (!userOrg) return NextResponse.json({ error: "ليس لديك صلاحية" }, { status: 403 })
 
-  const { name, employeeId, email, phone, department, position, basicSalary, joinDate } = await req.json()
+  const { name, employeeId, email, phone, department, position, basicSalary, joinDate, commissionRate } = await req.json()
 
   if (!name || !basicSalary || !joinDate) {
     return NextResponse.json({ error: "الاسم والراتب وتاريخ الالتحاق مطلوبة" }, { status: 400 })
@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
       position: position || null,
       basicSalary: Number(basicSalary),
       joinDate: new Date(joinDate),
+      commissionRate: commissionRate !== undefined && commissionRate !== "" ? Number(commissionRate) : null,
     },
   })
 

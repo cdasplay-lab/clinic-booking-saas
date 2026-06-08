@@ -27,13 +27,15 @@ const emptyItem = (): InvoiceItem =>
 export default function NewInvoicePage() {
   const router = useRouter()
   const [contacts, setContacts] = useState<any[]>([])
-  const [products, setProducts] = useState<any[]>([])
-  const [taxRates, setTaxRates] = useState<any[]>([])
+  const [products, setProducts]   = useState<any[]>([])
+  const [employees, setEmployees] = useState<any[]>([])
+  const [taxRates, setTaxRates]   = useState<any[]>([])
   const [form, setForm] = useState({
     contactId: "",
     date: new Date().toISOString().split("T")[0],
     dueDate: new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0],
     notes: "",
+    salespersonId: "",
   })
   const [items, setItems] = useState<InvoiceItem[]>([emptyItem()])
   const [loading, setLoading] = useState(false)
@@ -47,6 +49,7 @@ export default function NewInvoicePage() {
     fetch("/api/contacts?type=CUSTOMER").then((r) => r.json()).then(setContacts).catch(console.error)
     fetch("/api/products").then((r) => r.json()).then((d) => setProducts(Array.isArray(d) ? d : [])).catch(console.error)
     fetch("/api/tax-rates").then((r) => r.json()).then(setTaxRates).catch(console.error)
+    fetch("/api/payroll/employees").then((r) => r.json()).then((d) => setEmployees(Array.isArray(d) ? d : [])).catch(console.error)
   }, [])
 
   // Re-price product lines when the customer (price level) changes
@@ -197,6 +200,23 @@ export default function NewInvoicePage() {
                 <Input type="date" value={form.dueDate} onChange={(e) => setForm({...form, dueDate: e.target.value})} />
               </div>
             </div>
+
+            {employees.length > 0 && (
+              <div className="space-y-2 max-w-xs">
+                <Label>المندوب (اختياري)</Label>
+                <Select value={form.salespersonId} onValueChange={(v) => setForm({...form, salespersonId: v === "none" ? "" : v})}>
+                  <SelectTrigger><SelectValue placeholder="بدون مندوب" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">بدون مندوب</SelectItem>
+                    {employees.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>
+                        {e.name} {e.commissionRate ? `(${Number(e.commissionRate)}%)` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </CardContent>
         </Card>
 

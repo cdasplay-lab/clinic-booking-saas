@@ -44,7 +44,7 @@ export default async function InventoryPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
-            <Link href="/dashboard/inventory/adjust">
+            <Link href="/dashboard/inventory/count">
               <ClipboardList className="h-4 w-4" />
               جرد المخزون
             </Link>

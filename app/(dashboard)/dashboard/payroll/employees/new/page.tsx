@@ -21,6 +21,7 @@ export default function NewEmployeePage() {
     position: "",
     basicSalary: "",
     joinDate: today,
+    commissionRate: "",
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -112,6 +113,11 @@ export default function NewEmployeePage() {
             <div className="space-y-1.5">
               <Label>تاريخ الالتحاق *</Label>
               <Input type="date" value={form.joinDate} onChange={set("joinDate")} required dir="ltr" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>نسبة العمولة % <span className="text-gray-400 font-normal">(اختياري)</span></Label>
+              <Input type="number" min="0" max="100" step="0.01" value={form.commissionRate} onChange={set("commissionRate")} dir="ltr" placeholder="2.5" />
+              <p className="text-xs text-gray-400">إذا أُدخلت، تُحسب العمولة تلقائياً عند إنشاء فاتورة لهذا المندوب</p>
             </div>
           </div>
         </CardContent>

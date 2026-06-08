@@ -100,6 +100,7 @@ const navItems = [
       { label: "مراكز التكلفة", href: "/dashboard/reports/cost-centers", icon: Layers },
       { label: "دفتر اليومية", href: "/dashboard/reports/day-book", icon: BookOpen },
       { label: "تقرير ضريبة القيمة المضافة", href: "/dashboard/reports/vat", icon: DollarSign },
+      { label: "عمولات المندوبين", href: "/dashboard/reports/commissions", icon: DollarSign },
     ],
   },
   {

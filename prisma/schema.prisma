@@ -71,6 +71,8 @@ model Organization {
   posTransactions  PosTransaction[]
   cheques          Cheque[]
   productSerials   ProductSerial[]
+  stockCounts      StockCount[]
+  salesCommissions SalesCommission[]
 }
 
 enum Plan {
@@ -375,6 +377,7 @@ model Product {
   soItems        SalesOrderItem[]
   posItems       PosTransactionItem[]
   serials        ProductSerial[]
+  stockCountLines StockCountLine[]
 
   @@unique([organizationId, code])
   @@index([organizationId, isActive, name])
@@ -394,6 +397,7 @@ model Warehouse {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   stockLedger    StockLedger[]
   posSessions    PosSession[]
+  stockCounts    StockCount[]
 }
 
 model StockLedger {
@@ -506,6 +510,7 @@ enum JournalType {
   CLOSING
   PAYROLL
   DEPRECIATION
+  ADJUSTMENT
 }
 
 enum JournalStatus {
@@ -549,6 +554,7 @@ model Invoice {
   terms               String?
   journalId           String?
   salesOrderId        String?
+  salespersonId       String?
   lastReminderAt      DateTime?
   reminderCount       Int           @default(0)
   createdAt           DateTime      @default(now())
@@ -559,8 +565,10 @@ model Invoice {
   arAccount           Account?      @relation("ARAccount", fields: [arAccountId], references: [id])
   creditedInvoice     Invoice?      @relation("CreditNotes", fields: [creditedInvoiceId], references: [id])
   creditNotes         Invoice[]     @relation("CreditNotes")
+  salesperson         Employee?     @relation("InvoiceSalesperson", fields: [salespersonId], references: [id])
   items               InvoiceItem[]
   payments            Payment[]
+  commission          SalesCommission?
 
   @@unique([organizationId, number])
   @@index([organizationId, status, date(sort: Desc)])
@@ -934,11 +942,14 @@ model Employee {
   basicSalary    Decimal      @db.Decimal(18, 4)
   joinDate       DateTime
   endDate        DateTime?
+  commissionRate Decimal?     @db.Decimal(5, 2)   // عمولة % مثلاً 2.50
   isActive       Boolean      @default(true)
   createdAt      DateTime     @default(now())
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  payslips       Payslip[]
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  payslips         Payslip[]
+  salesCommissions SalesCommission[]
+  invoices         Invoice[]    @relation("InvoiceSalesperson")
 }
 
 model PayrollRun {
@@ -1398,4 +1409,83 @@ enum SerialStatus {
   SOLD       // مُباع
   RETURNED   // مُرتجع
   DEFECTIVE  // تالف / صيانة
+}
+
+// ============================================================
+// STOCK COUNT — جرد فعلي
+// ============================================================
+
+model StockCount {
+  id             String          @id @default(cuid())
+  organizationId String
+  warehouseId    String
+  number         String
+  status         StockCountStatus @default(DRAFT)
+  notes          String?
+  postedAt       DateTime?
+  journalId      String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  warehouse      Warehouse       @relation(fields: [warehouseId], references: [id])
+  lines          StockCountLine[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, createdAt(sort: Desc)])
+}
+
+model StockCountLine {
+  id           String     @id @default(cuid())
+  stockCountId String
+  productId    String
+  systemQty    Decimal    @default(0) @db.Decimal(18, 4)
+  countedQty   Decimal    @default(0) @db.Decimal(18, 4)
+  variance     Decimal    @default(0) @db.Decimal(18, 4)
+  unitCost     Decimal    @default(0) @db.Decimal(18, 4)
+
+  stockCount   StockCount @relation(fields: [stockCountId], references: [id], onDelete: Cascade)
+  product      Product    @relation(fields: [productId], references: [id])
+
+  @@unique([stockCountId, productId])
+  @@index([stockCountId])
+}
+
+enum StockCountStatus {
+  DRAFT
+  POSTED
+}
+
+// ============================================================
+// SALES REP — مندوب المبيعات
+// ============================================================
+
+// Commission is tracked per invoice line, not per invoice,
+// because a rep might cover only some line items.
+// For simplicity we attach at the invoice level.
+
+model SalesCommission {
+  id             String   @id @default(cuid())
+  organizationId String
+  invoiceId      String
+  employeeId     String
+  invoiceTotal   Decimal  @db.Decimal(18, 4)
+  rate           Decimal  @db.Decimal(8, 4)   // percentage e.g. 2.50
+  amount         Decimal  @db.Decimal(18, 4)
+  status         CommissionStatus @default(PENDING)
+  paidAt         DateTime?
+  createdAt      DateTime @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoice        Invoice      @relation(fields: [invoiceId], references: [id])
+  employee       Employee     @relation(fields: [employeeId], references: [id])
+
+  @@unique([invoiceId])
+  @@index([organizationId, employeeId, status])
+  @@index([organizationId, status])
+}
+
+enum CommissionStatus {
+  PENDING
+  PAID
 }
