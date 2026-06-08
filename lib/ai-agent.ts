@@ -3,6 +3,8 @@ import { prisma } from "./prisma"
 import { formatCurrency } from "./utils"
 import { getNextDocNumber, getOrCreateDefaultWarehouse } from "./org"
 import { createJournalEntry, round2 } from "./accounting"
+import { getInventoryAccounts, recordCogsForSale } from "./inventory"
+import { checkCreditLimit } from "./credit"
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || "" })
 
@@ -205,8 +207,9 @@ const AGENT_TOOLS: Anthropic.Tool[] = [
             required: ["description", "quantity", "unitPrice"],
           },
         },
-        dueDate: { type: "string", description: "تاريخ الاستحقاق YYYY-MM-DD (اختياري، افتراضي 30 يوم)" },
-        notes:   { type: "string" },
+        dueDate:         { type: "string", description: "تاريخ الاستحقاق YYYY-MM-DD (اختياري، افتراضي 30 يوم)" },
+        salespersonName: { type: "string", description: "اسم المندوب (اختياري — تُحسب عمولته تلقائياً)" },
+        notes:           { type: "string" },
       },
       required: ["contactName", "items"],
     },
@@ -439,6 +442,65 @@ const AGENT_TOOLS: Anthropic.Tool[] = [
       required: [],
     },
   },
+  {
+    name: "query_commissions",
+    description: "يعرض عمولات المندوبين: المعلّقة أو المدفوعة لمندوب معيّن أو لجميع المندوبين. للسؤال 'كم عمولة أحمد؟' أو 'شنو العمولات المستحقة؟'",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        employeeName: { type: "string", description: "اسم المندوب (اختياري — كل المندوبين إذا فارغ)" },
+        status:       { type: "string", enum: ["PENDING", "PAID", "ALL"], description: "حالة العمولة (افتراضي ALL)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "list_employees",
+    description: "يعرض قائمة الموظفين مع رواتبهم ونسب عمولاتهم. للسؤال 'من هم الموظفين؟' أو 'من عنده عمولة؟'",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        query: { type: "string", description: "فلتر بالاسم أو القسم (اختياري)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "get_payroll_summary",
+    description: "يعرض ملخص الرواتب: إجمالي الرواتب الشهرية، عدد الموظفين، توزيع حسب القسم. للسؤال 'كم رواتبنا الشهر؟'",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "search_invoices",
+    description: "يبحث عن فواتير بيع بفلاتر: العميل، الحالة، الفترة الزمنية. للسؤال 'شنو فواتير العميل X' أو 'الفواتير غير المدفوعة'",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        customerName: { type: "string", description: "اسم العميل (اختياري)" },
+        status:       { type: "string", enum: ["DRAFT", "SENT", "PARTIAL", "PAID", "OVERDUE"], description: "حالة الفاتورة (اختياري)" },
+        period:       { type: "string", enum: ["week", "month", "quarter", "year"], description: "الفترة (اختياري)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "create_credit_note",
+    description: "ينشئ إشعار خصم (مرتجع مبيعات) لفاتورة سابقة. استخدم عند إلغاء فاتورة أو إرجاع بضاعة من عميل.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        customerName:  { type: "string", description: "اسم العميل" },
+        invoiceNumber: { type: "string", description: "رقم الفاتورة الأصلية (اختياري)" },
+        amount:        { type: "number", description: "مبلغ الإشعار (يجب أن يكون موجباً)" },
+        reason:        { type: "string", description: "سبب الإشعار" },
+      },
+      required: ["customerName", "amount", "reason"],
+    },
+  },
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -450,6 +512,7 @@ async function executeTool(toolName: string, input: any, orgId: string): Promise
 
       // ── CREATE INVOICE ──────────────────────────────────────────────────────
       case "create_invoice": {
+        // 1. Resolve or create customer contact
         let contact = await prisma.contact.findFirst({
           where: { organizationId: orgId, name: { contains: input.contactName, mode: "insensitive" }, type: { in: ["CUSTOMER", "BOTH"] as any } },
         })
@@ -459,37 +522,126 @@ async function executeTool(toolName: string, input: any, orgId: string): Promise
           })
         }
 
+        // 2. Resolve salesperson (optional)
+        let salespersonId: string | null = null
+        if (input.salespersonName) {
+          const emp = await prisma.employee.findFirst({
+            where: { organizationId: orgId, name: { contains: input.salespersonName, mode: "insensitive" }, isActive: true },
+          })
+          if (emp) salespersonId = emp.id
+        }
+
         const number  = await getNextDocNumber(orgId, "INVOICE")
         const today   = new Date()
         const dueDate = input.dueDate ? new Date(input.dueDate) : new Date(today.getTime() + 30 * 86_400_000)
 
+        // 3. Build line items — auto-resolve product by description for COGS/stock
         let subtotal = 0
-        const items = (input.items || []).map((item: any, idx: number) => {
-          const total = round2(Number(item.quantity) * Number(item.unitPrice))
-          subtotal = round2(subtotal + total)
-          return { description: item.description, quantity: item.quantity, unitPrice: item.unitPrice, taxAmount: 0, total, sortOrder: idx }
-        })
+        const lineItems: Array<{ description: string; productId: string | null; quantity: number; unitPrice: number; taxAmount: number; total: number }> = []
+        for (const item of (input.items || [])) {
+          const product = await prisma.product.findFirst({
+            where: {
+              organizationId: orgId, isActive: true,
+              OR: [
+                { name: { contains: item.description, mode: "insensitive" } },
+                { code: { contains: item.description, mode: "insensitive" } },
+              ],
+            },
+          })
+          const lineTotal = round2(Number(item.quantity) * Number(item.unitPrice))
+          subtotal = round2(subtotal + lineTotal)
+          lineItems.push({ description: item.description, productId: product?.id || null, quantity: Number(item.quantity), unitPrice: Number(item.unitPrice), taxAmount: 0, total: lineTotal })
+        }
+        const total = subtotal
 
-        const arAccount = await prisma.account.findFirst({ where: { organizationId: orgId, accountType: "ACCOUNTS_RECEIVABLE" } })
+        // 4. Credit limit soft-check (warn but always proceed — no UI override in agent)
+        let creditWarning = ""
+        const credit = await checkCreditLimit(orgId, contact.id, total)
+        if (credit.exceeded) {
+          creditWarning = `\n⚠️ **تحذير ائتماني**: العميل تجاوز حد الائتمان — الحد: ${formatCurrency(credit.limit)}، المستحق: ${formatCurrency(credit.outstanding)}`
+        }
 
-        await prisma.invoice.create({
+        // 5. Find GL accounts
+        const arAccount      = await prisma.account.findFirst({ where: { organizationId: orgId, accountType: "ACCOUNTS_RECEIVABLE" } })
+        const revenueAccount = await prisma.account.findFirst({ where: { organizationId: orgId, accountType: "REVENUE" } })
+
+        // 6. Create invoice record
+        const invoice = await prisma.invoice.create({
           data: {
             organizationId: orgId, contactId: contact.id,
             number, type: "INVOICE", status: "DRAFT",
             date: today, dueDate,
-            subtotal, taxAmount: 0, total: subtotal,
-            amountDue: subtotal, amountPaid: 0,
+            subtotal, taxAmount: 0, total,
+            amountDue: total, amountPaid: 0,
             notes: input.notes || null,
             arAccountId: arAccount?.id,
-            items: { create: items },
+            salespersonId,
+            items: { create: lineItems },
           },
         })
 
-        return { success: true, number, total: subtotal, message: `✅ تم إنشاء الفاتورة **${number}** للعميل "${contact.name}" بمبلغ **${formatCurrency(subtotal)}** — الحالة: مسودة` }
+        // 7. Post AR + Revenue journal → promote to SENT
+        if (arAccount && revenueAccount) {
+          await createJournalEntry({
+            organizationId: orgId, date: today, type: "SALES",
+            description: `فاتورة مبيعات ${number}`,
+            sourceType: "invoice", sourceId: invoice.id,
+            lines: [
+              { accountId: arAccount.id,      debit: total, credit: 0,     description: `فاتورة ${number}` },
+              { accountId: revenueAccount.id, debit: 0,     credit: total, description: `إيرادات ${number}` },
+            ],
+          })
+          await prisma.invoice.update({ where: { id: invoice.id }, data: { status: "SENT" } })
+
+          // 8. Perpetual COGS: DR COGS / CR Inventory for inventoried products
+          const warehouse = await getOrCreateDefaultWarehouse(orgId)
+          const cogsTotal = await recordCogsForSale({
+            organizationId: orgId, warehouseId: warehouse.id,
+            date: today, reference: number,
+            items: lineItems.map((l) => ({ productId: l.productId, quantity: l.quantity })),
+            createStockOut: true,
+          })
+          if (cogsTotal > 0) {
+            const { inventory, cogs } = await getInventoryAccounts(orgId)
+            if (inventory && cogs) {
+              await createJournalEntry({
+                organizationId: orgId, date: today, type: "SALES",
+                description: `تكلفة بضاعة مباعة — فاتورة ${number}`,
+                sourceType: "invoice-cogs", sourceId: invoice.id,
+                lines: [
+                  { accountId: cogs.id,      debit: cogsTotal, credit: 0 },
+                  { accountId: inventory.id, debit: 0,         credit: cogsTotal },
+                ],
+              })
+            }
+          }
+        }
+
+        // 9. Auto-record sales commission
+        if (salespersonId) {
+          const emp = await prisma.employee.findFirst({
+            where: { id: salespersonId, organizationId: orgId },
+            select: { commissionRate: true },
+          })
+          if (emp?.commissionRate && Number(emp.commissionRate) > 0) {
+            const rate = Number(emp.commissionRate)
+            const commAmount = Math.round(total * (rate / 100) * 100) / 100
+            await prisma.salesCommission.create({
+              data: { organizationId: orgId, invoiceId: invoice.id, employeeId: salespersonId, invoiceTotal: total, rate, amount: commAmount },
+            })
+          }
+        }
+
+        const hasInventory = lineItems.some((l) => l.productId)
+        return {
+          success: true, number, total,
+          message: `✅ تم إنشاء الفاتورة **${number}** للعميل "${contact.name}" بمبلغ **${formatCurrency(total)}** — تم الترحيل المحاسبي (ذمم مدينة + إيرادات${hasInventory ? " + تكلفة البضاعة المباعة" : ""})${creditWarning}`,
+        }
       }
 
       // ── CREATE BILL ─────────────────────────────────────────────────────────
       case "create_bill": {
+        // 1. Resolve or create vendor contact
         let vendor = await prisma.contact.findFirst({
           where: { organizationId: orgId, name: { contains: input.vendorName, mode: "insensitive" }, type: { in: ["VENDOR", "BOTH"] as any } },
         })
@@ -503,29 +655,103 @@ async function executeTool(toolName: string, input: any, orgId: string): Promise
         const today   = new Date()
         const dueDate = input.dueDate ? new Date(input.dueDate) : new Date(today.getTime() + 30 * 86_400_000)
 
+        // 2. Build line items — auto-resolve products for inventory routing
         let subtotal = 0
-        const items = (input.items || []).map((item: any, idx: number) => {
-          const total = round2(Number(item.quantity) * Number(item.unitPrice))
-          subtotal = round2(subtotal + total)
-          return { description: item.description, quantity: item.quantity, unitPrice: item.unitPrice, taxAmount: 0, total, sortOrder: idx }
-        })
+        const lineItems: Array<{ description: string; productId: string | null; quantity: number; unitPrice: number; taxAmount: number; total: number }> = []
+        for (const item of (input.items || [])) {
+          const product = await prisma.product.findFirst({
+            where: {
+              organizationId: orgId, isActive: true,
+              OR: [
+                { name: { contains: item.description, mode: "insensitive" } },
+                { code: { contains: item.description, mode: "insensitive" } },
+              ],
+            },
+          })
+          const lineTotal = round2(Number(item.quantity) * Number(item.unitPrice))
+          subtotal = round2(subtotal + lineTotal)
+          lineItems.push({ description: item.description, productId: product?.id || null, quantity: Number(item.quantity), unitPrice: Number(item.unitPrice), taxAmount: 0, total: lineTotal })
+        }
+        const total = subtotal
 
-        const apAccount = await prisma.account.findFirst({ where: { organizationId: orgId, accountType: "ACCOUNTS_PAYABLE" } })
+        // 3. Split inventoried vs expense amounts
+        const productIds = lineItems.map((l) => l.productId).filter(Boolean) as string[]
+        const inventoriedProducts = productIds.length
+          ? await prisma.product.findMany({ where: { id: { in: productIds }, organizationId: orgId, isInventoried: true }, select: { id: true } })
+          : []
+        const inventoriedIds = new Set(inventoriedProducts.map((p) => p.id))
 
-        await prisma.bill.create({
+        let inventoryAmount = 0
+        let expenseAmount = 0
+        for (const l of lineItems) {
+          const lineNet = round2(l.quantity * l.unitPrice)
+          if (l.productId && inventoriedIds.has(l.productId)) inventoryAmount = round2(inventoryAmount + lineNet)
+          else expenseAmount = round2(expenseAmount + lineNet)
+        }
+
+        // 4. Find GL accounts
+        const apAccount       = await prisma.account.findFirst({ where: { organizationId: orgId, accountType: "ACCOUNTS_PAYABLE" } })
+        const expenseAccount  = await prisma.account.findFirst({ where: { organizationId: orgId, accountType: "EXPENSE" } })
+        const { inventory: inventoryAccount } = await getInventoryAccounts(orgId)
+
+        // 5. Create bill record
+        const bill = await prisma.bill.create({
           data: {
             organizationId: orgId, contactId: vendor.id,
             number, type: "BILL", status: "DRAFT",
             date: today, dueDate,
-            subtotal, taxAmount: 0, total: subtotal,
-            amountDue: subtotal, amountPaid: 0,
+            subtotal, taxAmount: 0, total,
+            amountDue: total, amountPaid: 0,
             notes: input.notes || null,
             apAccountId: apAccount?.id,
-            items: { create: items },
+            items: { create: lineItems },
           },
         })
 
-        return { success: true, number, total: subtotal, message: `✅ تم إنشاء فاتورة المورد **${number}** من "${vendor.name}" بمبلغ **${formatCurrency(subtotal)}** — الحالة: مسودة` }
+        // 6. Post AP + Inventory/Expense journal → promote to OPEN
+        if (apAccount && (inventoryAccount || expenseAccount)) {
+          const fallbackExpense = expenseAccount!
+          const journalLines: Array<{ accountId: string; debit: number; credit: number; description: string }> = [
+            { accountId: apAccount.id, debit: 0, credit: total, description: `مستحق للمورد ${number}` },
+          ]
+          const invTarget = inventoryAccount ?? fallbackExpense
+          if (inventoryAmount > 0) journalLines.push({ accountId: invTarget.id, debit: inventoryAmount, credit: 0, description: `مخزون مشتريات ${number}` })
+          if (expenseAmount  > 0) journalLines.push({ accountId: fallbackExpense.id, debit: expenseAmount,  credit: 0, description: `مصروف فاتورة ${number}` })
+
+          await createJournalEntry({
+            organizationId: orgId, date: today, type: "PURCHASE",
+            description: `فاتورة مورد ${number}`,
+            sourceType: "bill", sourceId: bill.id,
+            lines: journalLines,
+          })
+          await prisma.bill.update({ where: { id: bill.id }, data: { status: "OPEN" } })
+        }
+
+        // 7. Perpetual stock: StockLedger IN for each inventoried line
+        if (inventoriedIds.size > 0) {
+          const warehouse = await getOrCreateDefaultWarehouse(orgId)
+          for (const l of lineItems) {
+            if (!l.productId || !inventoriedIds.has(l.productId) || l.quantity <= 0) continue
+            await prisma.stockLedger.create({
+              data: {
+                productId: l.productId,
+                warehouseId: warehouse.id,
+                date: today,
+                reference: number,
+                quantity: l.quantity,
+                unitCost: l.unitPrice,
+                type: "IN",
+                billId: bill.id,
+              },
+            })
+          }
+        }
+
+        const hasInventory = inventoryAmount > 0
+        return {
+          success: true, number, total,
+          message: `✅ تم إنشاء فاتورة المورد **${number}** من "${vendor.name}" بمبلغ **${formatCurrency(total)}** — تم الترحيل المحاسبي (ذمم دائنة + ${hasInventory ? `مخزون ${inventoriedIds.size > 0 ? "(تم تحديث الكميات)" : ""}` : "مصروفات"})`,
+        }
       }
 
       // ── RECORD PAYMENT ──────────────────────────────────────────────────────
@@ -1086,6 +1312,194 @@ async function executeTool(toolName: string, input: any, orgId: string): Promise
         return { message: `🔍 مراجعة الحسابات — وجدت ${issues.length} نقطة تحتاج انتباه:\n\n${issues.join("\n")}` }
       }
 
+      // ── QUERY COMMISSIONS ───────────────────────────────────────────────────
+      case "query_commissions": {
+        const status = input.status === "PENDING" ? "PENDING" : input.status === "PAID" ? "PAID" : undefined
+
+        let employeeId: string | undefined
+        if (input.employeeName) {
+          const emp = await prisma.employee.findFirst({
+            where: { organizationId: orgId, name: { contains: input.employeeName, mode: "insensitive" } },
+          })
+          if (!emp) return { error: `لم يُوجد موظف باسم "${input.employeeName}"` }
+          employeeId = emp.id
+        }
+
+        const where: Record<string, unknown> = { organizationId: orgId }
+        if (employeeId) where.employeeId = employeeId
+        if (status)     where.status     = status
+
+        const commissions = await prisma.salesCommission.findMany({
+          where: where as any,
+          include: {
+            employee: { select: { name: true } },
+            invoice:  { select: { number: true, date: true } },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+        })
+
+        if (!commissions.length) return { message: `لا توجد عمولات${input.employeeName ? ` للمندوب "${input.employeeName}"` : ""}${status ? ` بحالة ${status === "PENDING" ? "معلّقة" : "مدفوعة"}` : ""}` }
+
+        const pending = commissions.filter((c) => c.status === "PENDING")
+        const paid    = commissions.filter((c) => c.status === "PAID")
+        const totalPending = pending.reduce((s, c) => s + Number(c.amount), 0)
+        const totalPaid    = paid.reduce((s, c) => s + Number(c.amount), 0)
+
+        // Group by employee
+        const byEmp: Record<string, { name: string; pending: number; paid: number }> = {}
+        for (const c of commissions) {
+          const name = c.employee.name
+          if (!byEmp[name]) byEmp[name] = { name, pending: 0, paid: 0 }
+          if (c.status === "PENDING") byEmp[name].pending += Number(c.amount)
+          else byEmp[name].paid += Number(c.amount)
+        }
+
+        return {
+          message: `عمولات المندوبين${input.employeeName ? ` — ${input.employeeName}` : ""}:\n• معلّقة (مستحقة): **${formatCurrency(totalPending)}** (${pending.length} عمولة)\n• مدفوعة: **${formatCurrency(totalPaid)}** (${paid.length} عمولة)\n\nتفصيل حسب المندوب:\n${Object.values(byEmp).map((e) => `• ${e.name}: معلّق ${formatCurrency(e.pending)} | مدفوع ${formatCurrency(e.paid)}`).join("\n")}`,
+        }
+      }
+
+      // ── LIST EMPLOYEES ──────────────────────────────────────────────────────
+      case "list_employees": {
+        const employees = await prisma.employee.findMany({
+          where: {
+            organizationId: orgId, isActive: true,
+            ...(input.query ? { OR: [{ name: { contains: input.query, mode: "insensitive" } }, { department: { contains: input.query, mode: "insensitive" } }] } : {}),
+          },
+          orderBy: { name: "asc" },
+        })
+
+        if (!employees.length) return { message: "لا يوجد موظفون نشطون" }
+
+        return {
+          count: employees.length,
+          message: `الموظفون النشطون (${employees.length}):\n${employees.map((e) => `• **${e.name}** (${e.employeeId}) — ${e.position || "—"} | راتب: ${formatCurrency(Number(e.basicSalary))}${e.commissionRate ? ` | عمولة: ${Number(e.commissionRate)}%` : ""}`).join("\n")}`,
+        }
+      }
+
+      // ── PAYROLL SUMMARY ─────────────────────────────────────────────────────
+      case "get_payroll_summary": {
+        const [employees, departments] = await Promise.all([
+          prisma.employee.findMany({ where: { organizationId: orgId, isActive: true }, select: { name: true, department: true, basicSalary: true, commissionRate: true } }),
+          prisma.employee.groupBy({ by: ["department"], where: { organizationId: orgId, isActive: true }, _sum: { basicSalary: true }, _count: { id: true } }),
+        ])
+
+        const totalSalaries = employees.reduce((s, e) => s + Number(e.basicSalary), 0)
+        const withCommission = employees.filter((e) => e.commissionRate && Number(e.commissionRate) > 0)
+
+        const deptLines = departments
+          .filter((d) => d.department)
+          .map((d) => `• ${d.department}: ${d._count.id} موظف | رواتب ${formatCurrency(Number(d._sum.basicSalary || 0))}`)
+          .join("\n")
+
+        return {
+          employeeCount: employees.length,
+          totalMonthly: totalSalaries,
+          message: `ملخص الرواتب:\n• إجمالي الموظفين: **${employees.length}**\n• إجمالي الرواتب الشهرية: **${formatCurrency(totalSalaries)}**\n• الرواتب السنوية: **${formatCurrency(totalSalaries * 12)}**\n• موظفون بعمولة: ${withCommission.length}\n\nحسب القسم:\n${deptLines || "لا تقسيمات محددة"}`,
+        }
+      }
+
+      // ── SEARCH INVOICES ─────────────────────────────────────────────────────
+      case "search_invoices": {
+        const now  = new Date()
+        const from = input.period === "week"    ? new Date(now.getTime() - 7 * 86_400_000)
+                   : input.period === "month"   ? new Date(now.getFullYear(), now.getMonth(), 1)
+                   : input.period === "quarter" ? new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
+                   : input.period === "year"    ? new Date(now.getFullYear(), 0, 1)
+                   : undefined
+
+        let contactId: string | undefined
+        if (input.customerName) {
+          const c = await prisma.contact.findFirst({
+            where: { organizationId: orgId, name: { contains: input.customerName, mode: "insensitive" } },
+          })
+          if (c) contactId = c.id
+        }
+
+        const where: Record<string, unknown> = { organizationId: orgId }
+        if (contactId)       where.contactId = contactId
+        if (input.status)    where.status    = input.status
+        if (from)            where.date      = { gte: from }
+
+        const invoices = await prisma.invoice.findMany({
+          where: where as any,
+          include: { contact: { select: { name: true } } },
+          orderBy: { date: "desc" },
+          take: 20,
+        })
+
+        if (!invoices.length) return { message: "لا توجد فواتير تطابق البحث" }
+
+        const total    = invoices.reduce((s, i) => s + Number(i.total), 0)
+        const totalDue = invoices.reduce((s, i) => s + Number(i.amountDue), 0)
+
+        return {
+          count: invoices.length,
+          message: `نتائج البحث (${invoices.length} فاتورة):\n• الإجمالي: **${formatCurrency(total)}** | المستحق: **${formatCurrency(totalDue)}**\n\n${invoices.slice(0, 10).map((i) => `• **${i.number}** — ${i.contact.name}: ${formatCurrency(Number(i.total))} — ${i.status} (${i.date.toLocaleDateString("ar-SA")})`).join("\n")}`,
+        }
+      }
+
+      // ── CREATE CREDIT NOTE ──────────────────────────────────────────────────
+      case "create_credit_note": {
+        let contact = await prisma.contact.findFirst({
+          where: { organizationId: orgId, name: { contains: input.customerName, mode: "insensitive" }, type: { in: ["CUSTOMER", "BOTH"] as any } },
+        })
+        if (!contact) return { error: `لم يُوجد عميل باسم "${input.customerName}"` }
+
+        const amount = round2(Number(input.amount))
+        if (amount <= 0) return { error: "المبلغ يجب أن يكون موجباً" }
+
+        const number  = await getNextDocNumber(orgId, "CREDIT_NOTE")
+        const today   = new Date()
+
+        // Find related invoice if specified
+        let linkedInvoice: { id: string; number: string } | null = null
+        if (input.invoiceNumber) {
+          linkedInvoice = await prisma.invoice.findFirst({
+            where: { organizationId: orgId, number: input.invoiceNumber },
+            select: { id: true, number: true },
+          }) || null
+        }
+
+        const arAccount      = await prisma.account.findFirst({ where: { organizationId: orgId, accountType: "ACCOUNTS_RECEIVABLE" } })
+        const revenueAccount = await prisma.account.findFirst({ where: { organizationId: orgId, accountType: "REVENUE" } })
+
+        const creditNote = await prisma.invoice.create({
+          data: {
+            organizationId: orgId,
+            contactId: contact.id,
+            number,
+            type: "CREDIT_NOTE",
+            status: "SENT",
+            date: today,
+            dueDate: today,
+            subtotal: -amount, taxAmount: 0, total: -amount,
+            amountDue: 0, amountPaid: 0,
+            notes: input.reason || null,
+            arAccountId: arAccount?.id,
+          },
+        })
+
+        // Post journal: DR Revenue / CR AR (reduces what customer owes)
+        if (arAccount && revenueAccount) {
+          await createJournalEntry({
+            organizationId: orgId, date: today, type: "GENERAL",
+            description: `إشعار خصم ${number} — ${input.reason}`,
+            sourceType: "invoice", sourceId: creditNote.id,
+            lines: [
+              { accountId: revenueAccount.id, debit: amount, credit: 0 },
+              { accountId: arAccount.id,      debit: 0,      credit: amount },
+            ],
+          })
+        }
+
+        return {
+          success: true, number, amount,
+          message: `✅ تم إنشاء إشعار الخصم **${number}** للعميل "${contact.name}" بمبلغ **${formatCurrency(amount)}**${linkedInvoice ? ` — مرتبط بالفاتورة ${linkedInvoice.number}` : ""} — ${input.reason}`,
+        }
+      }
+
       default:
         return { error: `أداة غير معروفة: ${toolName}` }
     }
@@ -1113,9 +1527,11 @@ export async function runAIAgent(
     : `لا ضريبة قيمة مضافة في ${country.nameAr}`
 
   const systemPrompt = `أنت **محاسب قانوني خبير ومستشار مالي** لشركة "${orgName}". أنت بديل المحاسب اليومي — صاحب الشركة يعتمد عليك في غياب محاسبه. دورك ثلاثي:
-1. تُنفّذ المهام المحاسبية مباشرةً (فواتير، دفعات، مصاريف، قيود، شيكات)
-2. تُجيب أي سؤال محاسبي يومي (الضريبة، أرصدة الحسابات، الأرباح، الميزانية، من يدين لي)
+1. تُنفّذ المهام المحاسبية مباشرةً (فواتير، دفعات، مصاريف، قيود، شيكات، إشعارات خصم)
+2. تُجيب أي سؤال محاسبي يومي (الضريبة، أرصدة الحسابات، الأرباح، الميزانية، من يدين لي، عمولات المندوبين، الرواتب)
 3. تُراجع الحسابات وتكتشف الأخطاء استباقياً (استخدم review_books عند السؤال عن صحة الحسابات)
+
+**الفواتير المُنشأة بواسطتك تُرحَّل محاسبياً فوراً**: قيد الذمم المدينة + الإيرادات، قيد تكلفة البضاعة المباعة (إذا منتج مخزوني)، تحديث كميات المخزون، تسجيل عمولة المندوب تلقائياً.
 
 ⚠️ حدود مهنية: لا تُقدّم استشارة ضريبية رسمية أو تُقرّ بدل المحاسب القانوني في الأمور المعقّدة (التدقيق، الإقرارات الرسمية، النزاعات). في هذي الحالات نفّذ ما تقدر عليه ثم انصح بمراجعة المحاسب.
 
