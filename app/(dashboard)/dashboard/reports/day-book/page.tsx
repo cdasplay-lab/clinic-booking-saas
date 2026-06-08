@@ -66,9 +66,9 @@ export default async function DayBookPage() {
               <TableBody>
                 {j.lines.map((line) => (
                   <TableRow key={line.id} className="text-sm">
-                    <TableCell className="w-8 text-gray-400">{line.debit > 0 ? "" : "···"}</TableCell>
+                    <TableCell className="w-8 text-gray-400">{Number(line.debit) > 0 ? "" : "···"}</TableCell>
                     <TableCell className="font-mono text-xs text-gray-500">{line.account.code}</TableCell>
-                    <TableCell className={line.debit > 0 ? "font-medium" : "text-gray-600 pr-8"}>
+                    <TableCell className={Number(line.debit) > 0 ? "font-medium" : "text-gray-600 pr-8"}>
                       {line.account.name}
                     </TableCell>
                     <TableCell className="text-left font-medium">

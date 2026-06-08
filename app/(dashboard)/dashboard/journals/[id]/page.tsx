@@ -36,7 +36,7 @@ export default async function JournalDetailPage({ params }: { params: { id: stri
 
   const journal = await prisma.journal.findFirst({
     where: { id: params.id, organizationId: userOrg.organizationId },
-    include: { lines: { include: { account: true }, orderBy: { sortOrder: "asc" } } },
+    include: { lines: { include: { account: true }, orderBy: { id: "asc" } } },
   })
   if (!journal) notFound()
 
@@ -99,7 +99,7 @@ export default async function JournalDetailPage({ params }: { params: { id: stri
                   <TableRow key={line.id}>
                     <TableCell>
                       <div>
-                        <p className="font-medium text-sm">{line.account.nameAr || line.account.name}</p>
+                        <p className="font-medium text-sm">{line.account.name}</p>
                         <p className="text-xs text-gray-400 font-mono">{line.account.code}</p>
                       </div>
                     </TableCell>

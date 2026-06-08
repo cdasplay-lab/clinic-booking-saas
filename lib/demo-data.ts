@@ -85,23 +85,23 @@ export async function seedDemoData(organizationId: string): Promise<{ created: n
 
   const customers = await Promise.all(
     customersData.map((c) =>
-      prisma.contact.create({ data: { organizationId, ...c, contactType: "CUSTOMER" as any, isActive: true } })
+      prisma.contact.create({ data: { organizationId, name: c.name, phone: c.phone, type: "CUSTOMER", isActive: true } })
     )
   )
   const suppliers = await Promise.all(
     suppliersData.map((s) =>
-      prisma.contact.create({ data: { organizationId, ...s, contactType: "VENDOR" as any, isActive: true } })
+      prisma.contact.create({ data: { organizationId, name: s.name, phone: s.phone, type: "VENDOR", isActive: true } })
     )
   )
 
   // ── 4. Products ──────────────────────────────────────────────
   await prisma.product.createMany({
     data: [
-      { organizationId, name: "مواد غذائية متنوعة",   code: "PRD-001", salePrice: 500 * M,  costPrice: 350 * M,  productType: "INVENTORY" as any, isActive: true },
-      { organizationId, name: "إلكترونيات ومعدات",    code: "PRD-002", salePrice: 2000 * M, costPrice: 1500 * M, productType: "INVENTORY" as any, isActive: true },
-      { organizationId, name: "خدمة استشارية",         code: "SRV-001", salePrice: 1000 * M, costPrice: 0,        productType: "SERVICE" as any,   isActive: true },
-      { organizationId, name: "خدمة توصيل وشحن",      code: "SRV-002", salePrice: 200 * M,  costPrice: 100 * M,  productType: "SERVICE" as any,   isActive: true },
-      { organizationId, name: "مواد بناء ومستلزمات",  code: "PRD-003", salePrice: 800 * M,  costPrice: 600 * M,  productType: "INVENTORY" as any, isActive: true },
+      { organizationId, name: "مواد غذائية متنوعة",   code: "PRD-001", salePrice: 500 * M,  purchasePrice: 350 * M,  isInventoried: true,  isActive: true },
+      { organizationId, name: "إلكترونيات ومعدات",    code: "PRD-002", salePrice: 2000 * M, purchasePrice: 1500 * M, isInventoried: true,  isActive: true },
+      { organizationId, name: "خدمة استشارية",         code: "SRV-001", salePrice: 1000 * M, purchasePrice: 0,        isInventoried: false, isActive: true },
+      { organizationId, name: "خدمة توصيل وشحن",      code: "SRV-002", salePrice: 200 * M,  purchasePrice: 100 * M,  isInventoried: false, isActive: true },
+      { organizationId, name: "مواد بناء ومستلزمات",  code: "PRD-003", salePrice: 800 * M,  purchasePrice: 600 * M,  isInventoried: true,  isActive: true },
     ],
   })
 
@@ -109,12 +109,12 @@ export async function seedDemoData(organizationId: string): Promise<{ created: n
   await prisma.bankAccount.create({
     data: {
       organizationId,
+      accountId: bankId,
       name: "الحساب الجاري الرئيسي",
       accountNumber: "1234567890",
       bankName: country.code === "IQ" ? "مصرف الرشيد" : country.code === "AE" ? "بنك الإمارات دبي الوطني" : "البنك الأهلي السعودي",
       currency,
       currentBalance: 50000 * M,
-      isActive: true,
     },
   })
 
@@ -286,7 +286,7 @@ export async function seedDemoData(organizationId: string): Promise<{ created: n
         organizationId,
         contactId: suppliers[bill.vendorIdx].id,
         number: `BILL-${String(i + 1).padStart(4, "0")}`,
-        billDate: d(bill.daysAgo),
+        date: d(bill.daysAgo),
         dueDate: d(bill.daysAgo + 30),
         currency,
         status: bill.status as any,
@@ -312,9 +312,9 @@ export async function seedDemoData(organizationId: string): Promise<{ created: n
   // ── 11. Employees ─────────────────────────────────────────────
   await prisma.employee.createMany({
     data: [
-      { organizationId, name: "أحمد محمد الكاظمي",  employeeId: "EMP-001", position: "مدير مالي",     department: "المالية",    salary: 3000 * M, currency, status: "ACTIVE" as any, hireDate: d(-365) },
-      { organizationId, name: "سارة علي الجبوري",   employeeId: "EMP-002", position: "محاسبة",        department: "المالية",    salary: 2000 * M, currency, status: "ACTIVE" as any, hireDate: d(-280) },
-      { organizationId, name: "محمود حسن العبيدي",  employeeId: "EMP-003", position: "مندوب مبيعات",  department: "المبيعات",   salary: 1800 * M, currency, status: "ACTIVE" as any, hireDate: d(-200) },
+      { organizationId, name: "أحمد محمد الكاظمي",  employeeId: "EMP-001", position: "مدير مالي",     department: "المالية",    basicSalary: 3000 * M, isActive: true, joinDate: d(-365) },
+      { organizationId, name: "سارة علي الجبوري",   employeeId: "EMP-002", position: "محاسبة",        department: "المالية",    basicSalary: 2000 * M, isActive: true, joinDate: d(-280) },
+      { organizationId, name: "محمود حسن العبيدي",  employeeId: "EMP-003", position: "مندوب مبيعات",  department: "المبيعات",   basicSalary: 1800 * M, isActive: true, joinDate: d(-200) },
     ],
   })
 

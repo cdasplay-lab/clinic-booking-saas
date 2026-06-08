@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
       const bills = await prisma.bill.findMany({
         where: { organizationId: orgId },
         include: { contact: { select: { name: true } } },
-        orderBy: { billDate: "desc" },
+        orderBy: { date: "desc" },
       })
       const buf = billsXlsx(bills, org.name, org.country)
       return xlsxResponse(Buffer.from(buf), `فواتير_الموردين_${org.name}`)

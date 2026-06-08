@@ -22,7 +22,7 @@ export default async function ProfitLossPage() {
   const data = await getProfitAndLoss(userOrg.organizationId, startOfYear, now)
 
   const country = getCountry(userOrg.organization.country)
-  const fmt = (n: number) => fmt(n, country.currency, country.locale)
+  const fmt = (n: number) => formatCurrency(n, country.currency, country.locale)
 
   return (
     <div className="space-y-4 max-w-3xl mx-auto">

@@ -45,7 +45,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       margin: 1,
       errorCorrectionLevel: "M",
     })
-    return new Response(pngBuffer, {
+    return new Response(new Uint8Array(pngBuffer), {
       headers: {
         "Content-Type": "image/png",
         "Cache-Control": "public, max-age=3600",

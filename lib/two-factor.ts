@@ -1,28 +1,27 @@
-import { authenticator } from "otplib"
+import { generateSecret, generateURI, verifySync } from "otplib"
 import QRCode from "qrcode"
 
 const APP_NAME = "HesabPro"
 
-// Configure TOTP — 30s window, 6 digits (standard)
-authenticator.options = { window: 1 }
-
 export function generateTotpSecret(): string {
-  return authenticator.generateSecret()
+  return generateSecret()
 }
 
 export function verifyTotp(secret: string, token: string): boolean {
   try {
-    return authenticator.verify({ token, secret })
+    // Allow ±1 time step (30s) of clock drift, matching the previous window: 1
+    const result = verifySync({ token, secret, epochTolerance: 30 })
+    return result.valid
   } catch {
     return false
   }
 }
 
 export async function generateQrDataUrl(email: string, secret: string): Promise<string> {
-  const otpAuthUrl = authenticator.keyuri(email, APP_NAME, secret)
+  const otpAuthUrl = getOtpAuthUrl(email, secret)
   return QRCode.toDataURL(otpAuthUrl, { width: 200, margin: 1 })
 }
 
 export function getOtpAuthUrl(email: string, secret: string): string {
-  return authenticator.keyuri(email, APP_NAME, secret)
+  return generateURI({ issuer: APP_NAME, label: email, secret })
 }
