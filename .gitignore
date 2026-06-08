@@ -13,6 +13,14 @@ node_modules/
 out/
 build/
 
+# next-pwa generated service worker artifacts (rebuilt on every build)
+public/sw.js
+public/sw.js.map
+public/swe-worker-*.js
+public/swe-worker-*.js.map
+public/workbox-*.js
+public/workbox-*.js.map
+
 # Prisma — keep migrations tracked so Vercel can run migrate deploy
 # prisma/migrations/
 
