@@ -4,8 +4,10 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, ArrowRight } from "lucide-react"
+import { PRICE_LEVELS } from "@/lib/pricing"
 import Link from "next/link"
 
 export default function NewCustomerPage() {
@@ -13,6 +15,7 @@ export default function NewCustomerPage() {
   const [form, setForm] = useState({
     name: "", email: "", phone: "", taxNumber: "",
     address: "", type: "CUSTOMER", paymentTerms: "30",
+    priceLevel: "RETAIL", creditLimit: "",
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -71,6 +74,21 @@ export default function NewCustomerPage() {
               <div className="space-y-2">
                 <Label>شروط الدفع (أيام)</Label>
                 <Input type="number" value={form.paymentTerms} onChange={(e) => setForm({...form, paymentTerms: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label>مستوى السعر</Label>
+                <Select value={form.priceLevel} onValueChange={(v) => setForm({...form, priceLevel: v})}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PRICE_LEVELS.map((l) => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>حد الائتمان</Label>
+                <Input type="number" min="0" step="0.01" placeholder="اتركه فارغاً = بلا حد"
+                  value={form.creditLimit} onChange={(e) => setForm({...form, creditLimit: e.target.value})} />
+                <p className="text-xs text-gray-400">النظام يمنع البيع الآجل عند تجاوز هذا الحد</p>
               </div>
               <div className="col-span-2 space-y-2">
                 <Label>العنوان</Label>

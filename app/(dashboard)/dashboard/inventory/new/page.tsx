@@ -12,7 +12,8 @@ export default function NewProductPage() {
   const router = useRouter()
   const [form, setForm] = useState({
     code: "", name: "", description: "", unit: "PCS",
-    category: "", salePrice: "0", purchasePrice: "0", reorderLevel: "0", barcode: "",
+    category: "", salePrice: "0", wholesalePrice: "0", vipPrice: "0",
+    purchasePrice: "0", reorderLevel: "0", barcode: "",
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -46,8 +47,17 @@ export default function NewProductPage() {
               <div className="space-y-2"><Label>الباركود</Label><Input value={form.barcode} onChange={(e) => setForm({...form, barcode: e.target.value})} placeholder="امسح الباركود أو اكتبه" /></div>
               <div className="space-y-2"><Label>الفئة</Label><Input value={form.category} onChange={(e) => setForm({...form, category: e.target.value})} /></div>
               <div className="space-y-2"><Label>حد إعادة الطلب</Label><Input type="number" value={form.reorderLevel} onChange={(e) => setForm({...form, reorderLevel: e.target.value})} /></div>
-              <div className="space-y-2"><Label>سعر البيع</Label><Input type="number" step="0.01" value={form.salePrice} onChange={(e) => setForm({...form, salePrice: e.target.value})} /></div>
-              <div className="space-y-2"><Label>سعر الشراء</Label><Input type="number" step="0.01" value={form.purchasePrice} onChange={(e) => setForm({...form, purchasePrice: e.target.value})} /></div>
+              <div className="space-y-2"><Label>سعر الشراء (التكلفة)</Label><Input type="number" step="0.01" value={form.purchasePrice} onChange={(e) => setForm({...form, purchasePrice: e.target.value})} /></div>
+            </div>
+
+            <div className="rounded-lg border bg-gray-50/60 p-3 space-y-2">
+              <p className="text-sm font-medium text-gray-700">أسعار البيع</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5"><Label className="text-xs">مفرد *</Label><Input type="number" step="0.01" value={form.salePrice} onChange={(e) => setForm({...form, salePrice: e.target.value})} /></div>
+                <div className="space-y-1.5"><Label className="text-xs">جملة</Label><Input type="number" step="0.01" placeholder="اختياري" value={form.wholesalePrice} onChange={(e) => setForm({...form, wholesalePrice: e.target.value})} /></div>
+                <div className="space-y-1.5"><Label className="text-xs">VIP</Label><Input type="number" step="0.01" placeholder="اختياري" value={form.vipPrice} onChange={(e) => setForm({...form, vipPrice: e.target.value})} /></div>
+              </div>
+              <p className="text-xs text-gray-400">يُطبّق السعر تلقائياً حسب مستوى العميل. الفارغ يرجع لسعر المفرد.</p>
             </div>
             <Button type="submit" disabled={loading} className="w-full">
               {loading && <Loader2 className="h-4 w-4 animate-spin ml-2" />} حفظ المنتج

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { getNextDocNumber, getOrCreateDefaultWarehouse } from "@/lib/org"
 import { createJournalEntry, round2 } from "@/lib/accounting"
 import { getInventoryAccounts, recordCogsForSale } from "@/lib/inventory"
+import { checkCreditLimit } from "@/lib/credit"
 import { writeAuditLog } from "@/lib/audit"
 
 const InvoiceItemSchema = z.object({
@@ -25,6 +26,7 @@ const CreateInvoiceSchema = z.object({
   notes:     z.string().max(1000).optional().nullable(),
   terms:     z.string().max(500).optional().nullable(),
   items:     z.array(InvoiceItemSchema).min(1).max(200),
+  overrideCreditLimit: z.boolean().optional(),
 })
 
 export async function GET(req: NextRequest) {
@@ -59,7 +61,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.errors[0]?.message ?? "بيانات غير صحيحة" }, { status: 400 })
   }
-  const { contactId, date, dueDate, notes, items } = parsed.data
+  const { contactId, date, dueDate, notes, items, overrideCreditLimit } = parsed.data
 
   let subtotal = 0
   let taxAmount = 0
@@ -82,6 +84,20 @@ export async function POST(req: NextRequest) {
   })
 
   const total = round2(subtotal + taxAmount)
+
+  // Credit limit control — block the sale if it pushes the customer over their
+  // limit, unless an authorized user explicitly overrides.
+  if (!overrideCreditLimit) {
+    const credit = await checkCreditLimit(orgId, contactId, total)
+    if (credit.exceeded) {
+      return NextResponse.json({
+        error: "creditLimitExceeded",
+        message: `العميل تجاوز حد الائتمان. الحد: ${credit.limit.toLocaleString()} — المستحق حالياً: ${credit.outstanding.toLocaleString()} — المتاح: ${Math.max(0, credit.available).toLocaleString()}`,
+        credit,
+      }, { status: 409 })
+    }
+  }
+
   const number = await getNextDocNumber(orgId, "INVOICE")
 
   // Find AR account

@@ -14,7 +14,7 @@ export default function EditProductPage() {
   const { id }  = useParams<{ id: string }>()
   const [form, setForm] = useState({
     code: "", name: "", description: "", unit: "PCS",
-    category: "", salePrice: "0", purchasePrice: "0",
+    category: "", salePrice: "0", wholesalePrice: "0", vipPrice: "0", purchasePrice: "0",
     reorderLevel: "0", barcode: "",
     condition: "", brand: "", platform: "", tracksSerial: false,
   })
@@ -34,6 +34,8 @@ export default function EditProductPage() {
           unit:          p.unit          ?? "PCS",
           category:      p.category      ?? "",
           salePrice:     String(p.salePrice     ?? 0),
+          wholesalePrice: String(p.wholesalePrice ?? 0),
+          vipPrice:      String(p.vipPrice      ?? 0),
           purchasePrice: String(p.purchasePrice ?? 0),
           reorderLevel:  String(p.reorderLevel  ?? 0),
           barcode:       p.barcode       ?? "",
@@ -106,12 +108,17 @@ export default function EditProductPage() {
                 <Input type="number" value={form.reorderLevel} onChange={(e) => setForm({ ...form, reorderLevel: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>سعر البيع</Label>
-                <Input type="number" step="0.01" value={form.salePrice} onChange={(e) => setForm({ ...form, salePrice: e.target.value })} />
-              </div>
-              <div className="space-y-2">
                 <Label>سعر الشراء / التكلفة</Label>
                 <Input type="number" step="0.01" value={form.purchasePrice} onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="rounded-lg border bg-gray-50/60 p-3 space-y-2">
+              <p className="text-sm font-medium text-gray-700">أسعار البيع</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5"><Label className="text-xs">مفرد</Label><Input type="number" step="0.01" value={form.salePrice} onChange={(e) => setForm({ ...form, salePrice: e.target.value })} /></div>
+                <div className="space-y-1.5"><Label className="text-xs">جملة</Label><Input type="number" step="0.01" value={form.wholesalePrice} onChange={(e) => setForm({ ...form, wholesalePrice: e.target.value })} /></div>
+                <div className="space-y-1.5"><Label className="text-xs">VIP</Label><Input type="number" step="0.01" value={form.vipPrice} onChange={(e) => setForm({ ...form, vipPrice: e.target.value })} /></div>
               </div>
             </div>
 

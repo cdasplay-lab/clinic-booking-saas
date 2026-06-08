@@ -8,9 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Loader2, Plus, Trash2, ArrowRight } from "lucide-react"
+import { priceForLevel, priceLevelLabel } from "@/lib/pricing"
 import Link from "next/link"
 
 interface InvoiceItem {
+  productId: string
   description: string
   quantity: string
   unitPrice: string
@@ -19,9 +21,13 @@ interface InvoiceItem {
   total: number
 }
 
+const emptyItem = (): InvoiceItem =>
+  ({ productId: "", description: "", quantity: "1", unitPrice: "0", taxRateId: "", taxAmount: 0, total: 0 })
+
 export default function NewInvoicePage() {
   const router = useRouter()
   const [contacts, setContacts] = useState<any[]>([])
+  const [products, setProducts] = useState<any[]>([])
   const [taxRates, setTaxRates] = useState<any[]>([])
   const [form, setForm] = useState({
     contactId: "",
@@ -29,16 +35,53 @@ export default function NewInvoicePage() {
     dueDate: new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0],
     notes: "",
   })
-  const [items, setItems] = useState<InvoiceItem[]>([
-    { description: "", quantity: "1", unitPrice: "0", taxRateId: "", taxAmount: 0, total: 0 }
-  ])
+  const [items, setItems] = useState<InvoiceItem[]>([emptyItem()])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [creditWarning, setCreditWarning] = useState<string | null>(null)
+
+  const customer = contacts.find((c) => c.id === form.contactId)
+  const priceLevel: string = customer?.priceLevel || "RETAIL"
 
   useEffect(() => {
     fetch("/api/contacts?type=CUSTOMER").then((r) => r.json()).then(setContacts).catch(console.error)
+    fetch("/api/products").then((r) => r.json()).then((d) => setProducts(Array.isArray(d) ? d : [])).catch(console.error)
     fetch("/api/tax-rates").then((r) => r.json()).then(setTaxRates).catch(console.error)
   }, [])
+
+  // Re-price product lines when the customer (price level) changes
+  useEffect(() => {
+    setItems((prev) => prev.map((it) => {
+      if (!it.productId) return it
+      const p = products.find((x) => x.id === it.productId)
+      if (!p) return it
+      const price = priceForLevel(p, priceLevel)
+      const qty = parseFloat(it.quantity) || 0
+      const tax = taxRates.find((t) => t.id === it.taxRateId)
+      const taxAmt = tax ? Math.round(qty * price * (Number(tax.rate) / 100) * 100) / 100 : 0
+      return { ...it, unitPrice: String(price), taxAmount: taxAmt, total: Math.round((qty * price + taxAmt) * 100) / 100 }
+    }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [priceLevel])
+
+  function pickProduct(index: number, productId: string) {
+    const p = products.find((x) => x.id === productId)
+    const updated = [...items]
+    if (!p) { updated[index] = { ...updated[index], productId: "" }; setItems(updated); return }
+    const price = priceForLevel(p, priceLevel)
+    const qty = parseFloat(updated[index].quantity) || 1
+    const tax = taxRates.find((t) => t.id === updated[index].taxRateId)
+    const taxAmt = tax ? Math.round(qty * price * (Number(tax.rate) / 100) * 100) / 100 : 0
+    updated[index] = {
+      ...updated[index],
+      productId,
+      description: p.name,
+      unitPrice: String(price),
+      taxAmount: taxAmt,
+      total: Math.round((qty * price + taxAmt) * 100) / 100,
+    }
+    setItems(updated)
+  }
 
   function updateItem(index: number, field: keyof InvoiceItem, value: string) {
     const updated = [...items]
@@ -57,7 +100,7 @@ export default function NewInvoicePage() {
   }
 
   function addItem() {
-    setItems([...items, { description: "", quantity: "1", unitPrice: "0", taxRateId: "", taxAmount: 0, total: 0 }])
+    setItems([...items, emptyItem()])
   }
 
   function removeItem(index: number) {
@@ -68,25 +111,35 @@ export default function NewInvoicePage() {
   const taxTotal = items.reduce((s, i) => s + i.taxAmount, 0)
   const total = subtotal + taxTotal
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.contactId) { setError("اختر العميل أولاً"); return }
+  async function submit(overrideCreditLimit = false) {
     setLoading(true)
     setError("")
 
     const res = await fetch("/api/invoices", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, items }),
+      body: JSON.stringify({ ...form, items, overrideCreditLimit }),
     })
 
     const data = await res.json()
+    if (res.status === 409 && data.error === "creditLimitExceeded") {
+      setCreditWarning(data.message || "العميل تجاوز حد الائتمان")
+      setLoading(false)
+      return
+    }
     if (!res.ok) {
-      setError(data.error || "حدث خطأ")
+      setError(data.message || data.error || "حدث خطأ")
       setLoading(false)
     } else {
       router.push(`/dashboard/invoices/${data.id}`)
     }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.contactId) { setError("اختر العميل أولاً"); return }
+    setCreditWarning(null)
+    await submit(false)
   }
 
   return (
@@ -103,6 +156,22 @@ export default function NewInvoicePage() {
           <CardContent className="space-y-4">
             {error && <div className="bg-red-50 text-red-700 px-4 py-3 rounded-md text-sm">{error}</div>}
 
+            {creditWarning && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-md text-sm space-y-2">
+                <p className="font-medium">⚠️ تجاوز حد الائتمان</p>
+                <p>{creditWarning}</p>
+                <div className="flex gap-2 pt-1">
+                  <Button type="button" size="sm" variant="outline" className="text-amber-800 border-amber-300"
+                    onClick={() => { setCreditWarning(null); submit(true) }} disabled={loading}>
+                    تجاوز الحد وحفظ الفاتورة
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setCreditWarning(null)}>
+                    إلغاء
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>العميل *</Label>
@@ -112,6 +181,12 @@ export default function NewInvoicePage() {
                     {contacts.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                {customer && (
+                  <p className="text-xs text-blue-600">
+                    مستوى السعر: <span className="font-medium">{priceLevelLabel(priceLevel)}</span>
+                    {Number(customer.creditLimit) > 0 && <> · حد الائتمان: {Number(customer.creditLimit).toLocaleString()}</>}
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>تاريخ الفاتورة</Label>
@@ -150,11 +225,21 @@ export default function NewInvoicePage() {
                 {items.map((item, i) => (
                   <TableRow key={i}>
                     <TableCell>
-                      <Input
-                        value={item.description}
-                        onChange={(e) => updateItem(i, "description", e.target.value)}
-                        placeholder="وصف المنتج/الخدمة"
-                      />
+                      <div className="space-y-1.5">
+                        {products.length > 0 && (
+                          <Select value={item.productId} onValueChange={(v) => pickProduct(i, v)}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="اختر منتج (اختياري)" /></SelectTrigger>
+                            <SelectContent>
+                              {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        <Input
+                          value={item.description}
+                          onChange={(e) => updateItem(i, "description", e.target.value)}
+                          placeholder="وصف المنتج/الخدمة"
+                        />
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Input

@@ -38,11 +38,13 @@ export async function POST(req: NextRequest) {
   if (!userOrg) return NextResponse.json({ error: "No organization" }, { status: 400 })
 
   const body = await req.json()
-  const { name, email, phone, type, taxNumber, paymentTerms, address } = body
+  const { name, email, phone, type, taxNumber, paymentTerms, address, priceLevel, creditLimit } = body
 
   if (!name || !type) {
     return NextResponse.json({ error: "الاسم والنوع مطلوبان" }, { status: 400 })
   }
+
+  const validLevels = ["RETAIL", "WHOLESALE", "VIP"]
 
   const contact = await prisma.contact.create({
     data: {
@@ -54,6 +56,9 @@ export async function POST(req: NextRequest) {
       taxNumber,
       paymentTerms: parseInt(paymentTerms) || 30,
       address,
+      priceLevel: validLevels.includes(priceLevel) ? priceLevel : "RETAIL",
+      creditLimit: creditLimit !== undefined && creditLimit !== "" && creditLimit !== null
+        ? parseFloat(creditLimit) : null,
     },
   })
 

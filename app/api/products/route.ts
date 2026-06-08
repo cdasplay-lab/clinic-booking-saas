@@ -11,6 +11,8 @@ const CreateProductSchema = z.object({
   category:      z.string().max(100).optional().nullable(),
   barcode:       z.string().max(100).optional().nullable(),
   salePrice:     z.coerce.number().min(0).default(0),
+  wholesalePrice: z.coerce.number().min(0).default(0),
+  vipPrice:      z.coerce.number().min(0).default(0),
   purchasePrice: z.coerce.number().min(0).default(0),
   reorderLevel:  z.coerce.number().min(0).default(0),
   isInventoried: z.boolean().default(true),
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.errors[0]?.message ?? "بيانات غير صحيحة" }, { status: 400 })
   }
-  const { code, name, description, unit, category, barcode, salePrice, purchasePrice, reorderLevel, isInventoried } = parsed.data
+  const { code, name, description, unit, category, barcode, salePrice, wholesalePrice, vipPrice, purchasePrice, reorderLevel, isInventoried } = parsed.data
 
   const product = await prisma.product.create({
     data: {
@@ -51,6 +53,8 @@ export async function POST(req: NextRequest) {
       category,
       barcode,
       salePrice,
+      wholesalePrice,
+      vipPrice,
       purchasePrice,
       reorderLevel,
       isInventoried,

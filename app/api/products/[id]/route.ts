@@ -42,6 +42,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       category:      data.category      ?? product.category,
       barcode:       data.barcode       !== undefined ? (data.barcode || null) : product.barcode,
       salePrice:     data.salePrice     !== undefined ? parseFloat(data.salePrice)     : product.salePrice,
+      wholesalePrice: data.wholesalePrice !== undefined ? parseFloat(data.wholesalePrice) : product.wholesalePrice,
+      vipPrice:      data.vipPrice      !== undefined ? parseFloat(data.vipPrice)      : product.vipPrice,
       purchasePrice: data.purchasePrice !== undefined ? parseFloat(data.purchasePrice) : product.purchasePrice,
       reorderLevel:  data.reorderLevel  !== undefined ? parseFloat(data.reorderLevel)  : product.reorderLevel,
       isActive:      data.isActive      !== undefined ? data.isActive                  : product.isActive,

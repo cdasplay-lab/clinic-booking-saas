@@ -313,6 +313,7 @@ model Contact {
   country        String?
   taxNumber      String?
   creditLimit    Decimal?      @db.Decimal(18, 4)
+  priceLevel     String        @default("RETAIL")  // RETAIL | WHOLESALE | VIP
   paymentTerms   Int           @default(30)
   currency       String        @default("SAR")
   isActive       Boolean       @default(true)
@@ -351,7 +352,9 @@ model Product {
   description    String?
   unit           String         @default("PCS")
   category       String?
-  salePrice      Decimal        @default(0) @db.Decimal(18, 4)
+  salePrice      Decimal        @default(0) @db.Decimal(18, 4)  // مفرد (retail)
+  wholesalePrice Decimal        @default(0) @db.Decimal(18, 4)  // جملة (wholesale)
+  vipPrice       Decimal        @default(0) @db.Decimal(18, 4)  // سعر خاص (VIP)
   purchasePrice  Decimal        @default(0) @db.Decimal(18, 4)
   reorderLevel   Decimal        @default(0) @db.Decimal(18, 4)
   barcode        String?
