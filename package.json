@@ -13,7 +13,11 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run __tests__/accounting-system.test.ts",
+    "test:integration": "vitest run __tests__/integration"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",
