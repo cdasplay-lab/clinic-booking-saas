@@ -1,4 +1,5 @@
 import { prisma } from "./prisma"
+import { Prisma } from "@prisma/client"
 import { round2 } from "./accounting"
 
 /**
@@ -13,8 +14,9 @@ import { round2 } from "./accounting"
  */
 
 /** Weighted-average unit cost from lifetime purchase history (StockLedger IN). Falls back to purchasePrice. */
-export async function getWeightedAvgCost(productId: string, fallback: number): Promise<number> {
-  const ins = await prisma.stockLedger.findMany({
+export async function getWeightedAvgCost(productId: string, fallback: number, db?: Prisma.TransactionClient | typeof prisma): Promise<number> {
+  const _db = db ?? prisma
+  const ins = await _db.stockLedger.findMany({
     where: { productId, type: "IN" },
     select: { quantity: true, unitCost: true },
   })
@@ -57,14 +59,16 @@ export async function recordCogsForSale(opts: {
   reference: string
   items: Array<{ productId?: string | null; quantity: number }>
   createStockOut?: boolean
+  db?: Prisma.TransactionClient | typeof prisma
 }): Promise<number> {
-  const { organizationId, warehouseId, date, reference, items, createStockOut = true } = opts
+  const { organizationId, warehouseId, date, reference, items, createStockOut = true, db } = opts
+  const _db = db ?? prisma
 
   // Only inventoried products contribute to COGS.
   const productIds = items.map((i) => i.productId).filter(Boolean) as string[]
   if (productIds.length === 0) return 0
 
-  const products = await prisma.product.findMany({
+  const products = await _db.product.findMany({
     where: { id: { in: productIds }, organizationId, isInventoried: true },
     select: { id: true, purchasePrice: true },
   })
@@ -79,11 +83,11 @@ export async function recordCogsForSale(opts: {
     const qty = Number(item.quantity)
     if (qty <= 0) continue
 
-    const unitCost = await getWeightedAvgCost(product.id, Number(product.purchasePrice))
+    const unitCost = await getWeightedAvgCost(product.id, Number(product.purchasePrice), _db)
     cogsTotal = round2(cogsTotal + qty * unitCost)
 
     if (createStockOut) {
-      await prisma.stockLedger.create({
+      await _db.stockLedger.create({
         data: {
           productId: product.id,
           warehouseId,

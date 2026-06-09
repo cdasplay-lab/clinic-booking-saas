@@ -1,5 +1,5 @@
 import { prisma } from "./prisma"
-import { JournalType } from "@prisma/client"
+import { JournalType, Prisma } from "@prisma/client"
 
 /** Round to 2 decimal places — use for all monetary intermediate values */
 export function round2(n: number): number {
@@ -30,7 +30,9 @@ export async function createJournalEntry({
   }>
   sourceType?: string
   sourceId?: string
-}) {
+}, db?: Prisma.TransactionClient | typeof prisma) {
+  const _db = db ?? prisma
+
   const totalDebit = lines.reduce((sum, l) => sum + l.debit, 0)
   const totalCredit = lines.reduce((sum, l) => sum + l.credit, 0)
 
@@ -40,7 +42,7 @@ export async function createJournalEntry({
 
   // Block posting into a closed fiscal year (except the closing entry itself)
   if (type !== "CLOSING") {
-    const closedYear = await prisma.fiscalYear.findFirst({
+    const closedYear = await _db.fiscalYear.findFirst({
       where: { organizationId, isClosed: true, startDate: { lte: date }, endDate: { gte: date } },
       select: { name: true },
     })
@@ -52,7 +54,7 @@ export async function createJournalEntry({
   const { getNextDocNumber } = await import("./org")
   const number = await getNextDocNumber(organizationId, "JOURNAL")
 
-  const journal = await prisma.journal.create({
+  const journal = await _db.journal.create({
     data: {
       organizationId,
       number,

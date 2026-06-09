@@ -109,113 +109,138 @@ export async function POST(req: NextRequest) {
     where: { organizationId: orgId, accountType: "REVENUE" },
   })
 
-  const invoice = await prisma.invoice.create({
-    data: {
-      organizationId: orgId,
-      contactId,
-      number,
-      date: new Date(date),
-      dueDate: new Date(dueDate),
-      subtotal,
-      taxAmount,
-      total,
-      amountDue: total,
-      status: "DRAFT",
-      notes,
-      arAccountId: arAccount?.id,
-      salespersonId: salespersonId || null,
-      items: { create: lineItems },
-    },
-  })
+  const invoice = await prisma.$transaction(async (tx) => {
+    const inv = await tx.invoice.create({
+      data: {
+        organizationId: orgId,
+        contactId,
+        number,
+        date: new Date(date),
+        dueDate: new Date(dueDate),
+        subtotal,
+        taxAmount,
+        total,
+        amountDue: total,
+        status: "DRAFT",
+        notes,
+        arAccountId: arAccount?.id,
+        salespersonId: salespersonId || null,
+        items: { create: lineItems },
+      },
+    })
 
-  // Create journal entry if we have accounts
-  if (arAccount && revenueAccount) {
-    const journalLines: Array<{ accountId: string; debit: number; credit: number; description: string }> = [
-      { accountId: arAccount.id, debit: total, credit: 0, description: `فاتورة ${number}` },
-    ]
+    // Create journal entry if we have accounts
+    if (arAccount && revenueAccount) {
+      const journalLines: Array<{ accountId: string; debit: number; credit: number; description: string }> = [
+        { accountId: arAccount.id, debit: total, credit: 0, description: `فاتورة ${number}` },
+      ]
 
-    if (taxAmount > 0) {
-      const taxAccount = await prisma.account.findFirst({
-        where: { organizationId: orgId, accountType: "TAX" },
-      })
-      if (taxAccount) {
-        // Separate tax liability account: DR AR = CR Revenue + CR Tax
-        journalLines.push({ accountId: revenueAccount.id, debit: 0, credit: subtotal, description: `إيرادات فاتورة ${number}` })
-        journalLines.push({ accountId: taxAccount.id,     debit: 0, credit: taxAmount, description: `ضريبة مبيعات ${number}` })
+      if (taxAmount > 0) {
+        const taxAccount = await tx.account.findFirst({
+          where: { organizationId: orgId, accountType: "TAX" },
+        })
+        if (taxAccount) {
+          // Separate tax liability account: DR AR = CR Revenue + CR Tax
+          journalLines.push({ accountId: revenueAccount.id, debit: 0, credit: subtotal, description: `إيرادات فاتورة ${number}` })
+          journalLines.push({ accountId: taxAccount.id,     debit: 0, credit: taxAmount, description: `ضريبة مبيعات ${number}` })
+        } else {
+          // No tax account configured — credit full total to revenue (tax included)
+          journalLines.push({ accountId: revenueAccount.id, debit: 0, credit: total, description: `إيرادات فاتورة ${number}` })
+        }
       } else {
-        // No tax account configured — credit full total to revenue (tax included)
         journalLines.push({ accountId: revenueAccount.id, debit: 0, credit: total, description: `إيرادات فاتورة ${number}` })
       }
-    } else {
-      journalLines.push({ accountId: revenueAccount.id, debit: 0, credit: total, description: `إيرادات فاتورة ${number}` })
+
+      await createJournalEntry({
+        organizationId: orgId,
+        date: new Date(date),
+        type: "SALES",
+        description: `فاتورة مبيعات ${number}`,
+        sourceType: "invoice",
+        sourceId: inv.id,
+        lines: journalLines,
+      }, tx)
+
+      await tx.invoice.update({
+        where: { id: inv.id },
+        data: { status: "SENT" },
+      })
+
+      // Perpetual inventory: reduce stock + record cost of goods sold
+      const warehouse = await getOrCreateDefaultWarehouse(orgId)
+      const cogsTotal = await recordCogsForSale({
+        organizationId: orgId,
+        warehouseId: warehouse.id,
+        date: new Date(date),
+        reference: number,
+        items: lineItems.map((l: any) => ({ productId: l.productId, quantity: l.quantity })),
+        createStockOut: true,
+        db: tx,
+      })
+
+      if (cogsTotal > 0) {
+        const { inventory, cogs } = await getInventoryAccounts(orgId)
+        if (inventory && cogs) {
+          await createJournalEntry({
+            organizationId: orgId,
+            date: new Date(date),
+            type: "SALES",
+            description: `تكلفة بضاعة مباعة — فاتورة ${number}`,
+            sourceType: "invoice-cogs",
+            sourceId: inv.id,
+            lines: [
+              { accountId: cogs.id,      debit: cogsTotal, credit: 0 },
+              { accountId: inventory.id, debit: 0,         credit: cogsTotal },
+            ],
+          }, tx)
+        }
+      }
+
+      // Auto-assign oldest IN_STOCK serials for serial-tracked products
+      for (const l of lineItems) {
+        if (!l.productId) continue
+        const prod = await tx.product.findFirst({ where: { id: l.productId, organizationId: orgId, tracksSerial: true } })
+        if (!prod) continue
+        const qty = Math.floor(Number(l.quantity))
+        if (qty <= 0) continue
+        const available = await tx.productSerial.findMany({
+          where: { productId: l.productId, organizationId: orgId, status: "IN_STOCK" },
+          orderBy: { createdAt: "asc" },
+          take: qty,
+        })
+        for (const serial of available) {
+          await tx.productSerial.update({
+            where: { id: serial.id },
+            data: { status: "SOLD", soldInvoiceId: inv.id, soldDate: new Date(date) },
+          })
+        }
+      }
     }
 
-    await createJournalEntry({
-      organizationId: orgId,
-      date: new Date(date),
-      type: "SALES",
-      description: `فاتورة مبيعات ${number}`,
-      sourceType: "invoice",
-      sourceId: invoice.id,
-      lines: journalLines,
-    })
-
-    await prisma.invoice.update({
-      where: { id: invoice.id },
-      data: { status: "SENT" },
-    })
-
-    // Perpetual inventory: reduce stock + record cost of goods sold
-    const warehouse = await getOrCreateDefaultWarehouse(orgId)
-    const cogsTotal = await recordCogsForSale({
-      organizationId: orgId,
-      warehouseId: warehouse.id,
-      date: new Date(date),
-      reference: number,
-      items: lineItems.map((l: any) => ({ productId: l.productId, quantity: l.quantity })),
-      createStockOut: true,
-    })
-
-    if (cogsTotal > 0) {
-      const { inventory, cogs } = await getInventoryAccounts(orgId)
-      if (inventory && cogs) {
-        await createJournalEntry({
-          organizationId: orgId,
-          date: new Date(date),
-          type: "SALES",
-          description: `تكلفة بضاعة مباعة — فاتورة ${number}`,
-          sourceType: "invoice-cogs",
-          sourceId: invoice.id,
-          lines: [
-            { accountId: cogs.id,      debit: cogsTotal, credit: 0 },
-            { accountId: inventory.id, debit: 0,         credit: cogsTotal },
-          ],
+    // Auto-record commission if salesperson has a commission rate
+    if (salespersonId) {
+      const emp = await tx.employee.findFirst({
+        where: { id: salespersonId, organizationId: orgId },
+        select: { commissionRate: true },
+      })
+      if (emp?.commissionRate && Number(emp.commissionRate) > 0) {
+        const rate = Number(emp.commissionRate)
+        const commAmount = Math.round(total * (rate / 100) * 100) / 100
+        await tx.salesCommission.create({
+          data: {
+            organizationId: orgId,
+            invoiceId: inv.id,
+            employeeId: salespersonId,
+            invoiceTotal: total,
+            rate,
+            amount: commAmount,
+          },
         })
       }
     }
-  }
 
-  // Auto-record commission if salesperson has a commission rate
-  if (salespersonId) {
-    const emp = await prisma.employee.findFirst({
-      where: { id: salespersonId, organizationId: orgId },
-      select: { commissionRate: true },
-    })
-    if (emp?.commissionRate && Number(emp.commissionRate) > 0) {
-      const rate = Number(emp.commissionRate)
-      const commAmount = Math.round(total * (rate / 100) * 100) / 100
-      await prisma.salesCommission.create({
-        data: {
-          organizationId: orgId,
-          invoiceId: invoice.id,
-          employeeId: salespersonId,
-          invoiceTotal: total,
-          rate,
-          amount: commAmount,
-        },
-      })
-    }
-  }
+    return inv
+  }, { timeout: 15000 })
 
   await writeAuditLog({
     organizationId: orgId,

@@ -139,6 +139,67 @@ export async function POST(req: NextRequest) {
     })
   }
 
+  // Restock inventory + reverse COGS for inventoried product lines
+  const originalItems = await prisma.invoice.findFirst({
+    where: { id: creditedInvoiceId },
+    include: { items: { select: { productId: true, quantity: true, unitPrice: true } } },
+  })
+  if (originalItems?.items) {
+    const productIds = originalItems.items.map(i => i.productId).filter(Boolean) as string[]
+    const inventoriedProds = productIds.length
+      ? await prisma.product.findMany({ where: { id: { in: productIds }, organizationId: orgId, isInventoried: true }, select: { id: true, tracksSerial: true } })
+      : []
+    const invSet = new Set(inventoriedProds.map(p => p.id))
+    const serialSet = new Set(inventoriedProds.filter(p => p.tracksSerial).map(p => p.id))
+
+    if (invSet.size > 0) {
+      const { getOrCreateDefaultWarehouse } = await import("@/lib/org")
+      const { getWeightedAvgCost, getInventoryAccounts } = await import("@/lib/inventory")
+      const warehouse = await getOrCreateDefaultWarehouse(orgId)
+
+      let cogsReversal = 0
+      for (const item of originalItems.items) {
+        if (!item.productId || !invSet.has(item.productId)) continue
+        const qty = Number(item.quantity)
+        if (qty <= 0) continue
+        const unitCost = await getWeightedAvgCost(item.productId, Number(item.unitPrice))
+        cogsReversal = round2(cogsReversal + qty * unitCost)
+        // Restock
+        await prisma.stockLedger.create({
+          data: { productId: item.productId, warehouseId: warehouse.id, date: new Date(date), reference: number, quantity: qty, unitCost, type: "IN" },
+        })
+        // Mark serial RETURNED (if tracked)
+        if (serialSet.has(item.productId)) {
+          const soldSerial = await prisma.productSerial.findFirst({
+            where: { productId: item.productId, organizationId: orgId, soldInvoiceId: creditedInvoiceId, status: "SOLD" },
+          })
+          if (soldSerial) {
+            await prisma.productSerial.update({ where: { id: soldSerial.id }, data: { status: "RETURNED", soldInvoiceId: null, soldDate: null } })
+          }
+        }
+      }
+
+      // Post reverse COGS journal: DR Inventory / CR COGS
+      if (cogsReversal > 0) {
+        const { inventory, cogs } = await getInventoryAccounts(orgId)
+        if (inventory && cogs) {
+          await createJournalEntry({
+            organizationId: orgId,
+            date: new Date(date),
+            type: "CREDIT_NOTE",
+            description: `عكس تكلفة البضاعة — إشعار ${number}`,
+            sourceType: "credit_note",
+            sourceId: creditNote.id,
+            lines: [
+              { accountId: inventory.id, debit: cogsReversal, credit: 0 },
+              { accountId: cogs.id,      debit: 0,            credit: cogsReversal },
+            ],
+          })
+        }
+      }
+    }
+  }
+
   await writeAuditLog({
     organizationId: orgId,
     userId:    session.user.id,
